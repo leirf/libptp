@@ -476,6 +476,8 @@ typedef struct _PTPDevicePropDesc PTPDevicePropDesc;
 #define PTP_DPC_EK_UI_Language		0xD006
 // Canon extension device property codes
 #define PTP_DPC_CANON_BeepMode		0xD001
+#define PTP_DPC_CANON_FlashMemory	0xD031
+#define PTP_DPC_CANON_CameraModel	0xD032
 #define PTP_DPC_CANON_UnixTime		0xD034
 
 // Device Property Form Flag

@@ -557,6 +557,9 @@ get_property_description(PTPParams* params, uint16_t dpc)
 		{PTP_DPC_CANON_BeepMode,	N_("CANON: Beep Mode")},
 		{PTP_DPC_CANON_UnixTime,	N_("CANON: Time measured in"
 						" secondssince 01-01-1970")},
+		{PTP_DPC_CANON_FlashMemory,	N_("CANON: Flash Card Capacity")},
+		{PTP_DPC_CANON_CameraModel,	N_("CANON: Camera Model")},
+
 		{0,NULL}
 	};
 
