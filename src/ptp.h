@@ -1,21 +1,22 @@
 /* ptp.h
  *
- * Copyright (C) 2001 Mariusz Woloszyn <emsi@ipartners.pl>
+ * Copyright (C) 2001-2004 Mariusz Woloszyn <emsi@ipartners.pl>
  *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
+ *  This file is part of libptp2.
  *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  libptp2 is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ *  libptp2 is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with libptp2; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef __PTP_H__
@@ -157,6 +158,9 @@ typedef struct _PTPUSBEventContainer PTPUSBEventContainer;
 #define PTP_OC_CANON_GetChanges		0x9020
 #define PTP_OC_CANON_GetFolderEntries	0x9021
 
+/* Proprietary vendor extension operations mask */
+#define PTP_OC_EXTENSION_MASK		0xF000
+#define PTP_OC_EXTENSION		0x9000
 
 /* Response Codes */
 
@@ -197,6 +201,10 @@ typedef struct _PTPUSBEventContainer PTPUSBEventContainer;
 #define PTP_RC_EK_FilenameRequired	0xA001
 #define PTP_RC_EK_FilenameConflicts	0xA002
 #define PTP_RC_EK_FilenameInvalid	0xA003
+
+/* Proprietary vendor extension response code mask */
+#define PTP_RC_EXTENSION_MASK		0xF000
+#define PTP_RC_EXTENSION		0xA000
 
 /* libptp2 extended ERROR codes */
 #define PTP_ERROR_IO			0x02FF
@@ -786,6 +794,11 @@ int ptp_property_issupported	(PTPParams* params, uint16_t property);
 
 void ptp_free_devicepropdesc	(PTPDevicePropDesc* dpd);
 void ptp_perror			(PTPParams* params, uint16_t error);
+const char*
+ptp_get_operation_name		(PTPParams* params, uint16_t oc);
+const char*
+ptp_get_property_name		(PTPParams* params, uint16_t dpc);
+
 
 
 #endif /* __PTP_H__ */
