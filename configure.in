@@ -1,0 +1,39 @@
+# Process this file with autoconf to produce a configure script.
+AC_INIT([libptp2],[1.0dev1],[emsi@ipartners.pl])
+AM_INIT_AUTOMAKE(libptp2, 1.0dev1)
+AC_PREREQ(2.53)
+AM_CONFIG_HEADER([config.h])
+AC_PROG_LIBTOOL
+
+# Checks for programs.
+AC_PROG_CC
+
+# Checks for libraries.
+
+# Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS([libintl.h stdlib.h string.h])
+
+# Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_C_INLINE
+AC_STRUCT_TM
+
+# Checks for library functions.
+AC_FUNC_ERROR_AT_LINE
+AC_FUNC_MALLOC
+AC_FUNC_MKTIME
+AC_FUNC_VPRINTF
+AC_CHECK_FUNCS([memset strchr strdup strtol])
+
+dnl Create a header file containing NetBSD-style byte swapping macros
+AC_NEED_BYTEORDER_H(libptp-endian.h)
+dnl Create a stdint.h-like file containing size-specific integer definitions
+dnl that will always be available
+AC_NEED_STDINT_H(_stdint.h)
+
+#AC_CONFIG_FILES([])
+AC_CONFIG_FILES([ 
+Makefile
+])
+AC_OUTPUT

@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 #ifdef ENABLE_NLS
 #  include <libintl.h>
@@ -44,7 +45,9 @@
 #  define N_(String) (String)
 #endif
 
-#define CR(p) {short ret = (p); if (ret != PTP_RC_OK) return (ret);}
+#define CHECK_PTP_RC(result)	{uint16_t r=(result); if (r!=PTP_RC_OK) return r;}
+
+#define PTP_CNT_INIT(cnt) {memset(&cnt,0,sizeof(cnt));}
 
 static void
 ptp_debug (PTPParams *params, const char *format, ...)
@@ -52,10 +55,14 @@ ptp_debug (PTPParams *params, const char *format, ...)
         va_list args;
 
         va_start (args, format);
-        if (params->debug_func)
+        if (params->debug_func!=NULL)
                 params->debug_func (params->data, format, args);
         else
+	{
                 vfprintf (stderr, format, args);
+		fprintf (stderr,"\n");
+		fflush (stderr);
+	}
         va_end (args);
 }  
 
@@ -65,457 +72,883 @@ ptp_error (PTPParams *params, const char *format, ...)
         va_list args;
 
         va_start (args, format);
-        if (params->error_func)
+        if (params->error_func!=NULL)
                 params->error_func (params->data, format, args);
         else
+	{
                 vfprintf (stderr, format, args);
+		fprintf (stderr,"\n");
+		fflush (stderr);
+	}
         va_end (args);
 }
 
-#define PTP_REQ_LEN                     30
-#define PTP_REQ_HDR_LEN                 (2*sizeof(int)+2*sizeof(short))
-#define PTP_RESP_LEN                    sizeof(PTPReq)
+// Pack / unpack functions
 
-typedef struct _PTPReq PTPReq;
-struct _PTPReq {
-	int len;
-	short type;
-	short code;
-	int trans_id;
-	char data[PTP_REQ_DATALEN];
-};
+#include "ptp-pack.c"
 
-static short
-ptp_sendreq(PTPParams* params, PTPReq* databuf, short code)
+// send / receive functions
+
+uint16_t
+ptp_usb_sendreq (PTPParams* params, PTPContainer* req)
 {
-	short ret;
-	PTPReq* req=(databuf==NULL)?
-		malloc(sizeof(PTPReq)):databuf;
-	
-	req->len = PTP_REQ_LEN;
-	req->type = PTP_TYPE_REQ;
-	req->code = code;
-	req->trans_id = params->transaction_id;
-	params->transaction_id++;
+	uint16_t ret;
+	PTPUSBBulkContainer usbreq;
 
-	ptp_debug (params, "Sending request...");
-	ret=params->write_func ((unsigned char *) req, PTP_REQ_LEN,
-				 params->data);
-	if (databuf==NULL) free (req);
-	return ret;
-}
-
-#if 0
-static short
-ptp_senddata(PTPParams* params, PTPReq* databuf, short code)
-{
-	short ret;
-	PTPReq* req=(databuf==NULL)?
-		malloc(sizeof(PTPReq)):databuf;
-	
-	req->len = PTP_REQ_LEN;
-	req->type = PTP_TYPE_DATA;
-	req->code = code;
-	req->trans_id = params->transaction_id;
-
-	ret=params->write_func ((unsigned char *) req, PTP_REQ_LEN,
-				 params->data);
-	if (databuf==NULL) free (req);
-	return ret;
-}
-#endif
-
-static short
-ptp_getdata(PTPParams* params, PTPReq* databuf)
-{
-	short ret;
-	PTPReq* req=(databuf==NULL)?
-		malloc(sizeof(PTPReq)):databuf;
-
-	memset(req, 0, PTP_RESP_LEN);
-	ret=params->read_func((unsigned char *) req, PTP_RESP_LEN,
-				 params->data);
-	if (databuf==NULL) free (req);
-	return ret;
-}
-
-static short
-ptp_getresp(PTPParams* params, PTPReq* databuf)
-{
-	short ret;
-	PTPReq* req=(databuf==NULL)?
-		malloc(sizeof(PTPReq)):databuf;
-
-	memset(req, 0, PTP_RESP_LEN);
-	ret=params->read_func((unsigned char*) req, PTP_RESP_LEN, params->data);
-	if (databuf==NULL) free (req);
-	return ret;
-}
-
-// Iniciates connection with device, opens session
-
-#if 0
-short
-ptp_getdevinfo(PTPParams* params, PTPDedviceInfo* devinfo)
-{
-	short ret;
-	PTPReq* req=malloc(sizeof(PTPReq));
-	
-	// Do GetDevInfo (we may use it for some camera_about)
- 	if (devinfo==NULL) devinfo=malloc(sizeof(PTPDedviceInfo));
-	memset(req, 0, PTP_RESP_LEN);
-	ret=ptp_sendreq(params, req,PTP_OC_GetDevInfo);
+	/* build appropriate USB container */
+	usbreq.length=htod32(PTP_USB_BULK_REQ_LEN-
+		(sizeof(uint32_t)*(5-req->Nparam)));
+	usbreq.type=htod16(PTP_USB_CONTAINER_COMMAND);
+	usbreq.code=htod16(req->Code);
+	usbreq.trans_id=htod32(req->Transaction_ID);
+	usbreq.payload.params.param1=htod32(req->Param1);
+	usbreq.payload.params.param2=htod32(req->Param2);
+	usbreq.payload.params.param3=htod32(req->Param3);
+	usbreq.payload.params.param4=htod32(req->Param4);
+	usbreq.payload.params.param5=htod32(req->Param5);
+	/* send it to responder */
+	ret=params->write_func((unsigned char *)&usbreq,
+		PTP_USB_BULK_REQ_LEN-(sizeof(uint32_t)*(5-req->Nparam)),
+		params->data);
 	if (ret!=PTP_RC_OK) {
-		ptp_error (params, "ptp_getdevinfo sending req");
-		free(req);
-		return PTP_ERROR_IO;
+		ret = PTP_ERROR_IO;
+/*		ptp_error (params,
+			"PTP: request code 0x%04x sending req error 0x%04x",
+			req->Code,ret); */
 	}
-	ret=ptp_getdata(params, req);
-	if ((ret!=PTP_RC_OK) ||
-		(req->type!=PTP_TYPE_DATA) || (req->code!=PTP_OC_GetDevInfo)) {
-		ptp_error (params, "ptp_getdevinfo getting data");
-		ptp_debug (params, "GetDevInfo data returned:\nlen=0x%8.8x "
-			"type=0x%4.4x code=0x%4.4x ID=0x%8.8x\n",
-			req->len, req->type, req->code, req->trans_id);
-		if (ret!=PTP_RC_OK) ret=PTP_ERROR_IO; else
-		ret=(req->type==PTP_TYPE_DATA)?
-			req->code:PTP_ERROR_DATA_EXPECTED;
-		free(req);
-		return ret;
-	}
-	memcpy(devinfo, req->data,sizeof(PTPDedviceInfo));
-	ret=ptp_getresp(params, req);
-	if ((ret!=PTP_RC_OK) ||
-		(req->type!=PTP_TYPE_RESP) || (req->code!=PTP_RC_OK)) {
-		ptp_error (params, "ptp_getdevinfo getting resp");
-		ptp_debug (params, "GetDevInfo resp:\nlen=0x%8.8x type=0x%4.4x "
-			"code=0x%4.4x ID=0x%8.8x\n",
-			req->len, req->type, req->code, req->trans_id);
-		if (ret!=PTP_RC_OK) ret=PTP_ERROR_IO; else
-			ret=(req->type==PTP_TYPE_RESP)?
-				req->code:PTP_ERROR_RESP_EXPECTED;
-		free(req);
-		return ret;
-	}
-	free(req);
-	return PTP_RC_OK;
+	return ret;
 }
-#endif
+
+uint16_t
+ptp_usb_senddata (PTPParams* params, PTPContainer* ptp,
+			unsigned char *data, unsigned int size)
+{
+	uint16_t ret;
+	PTPUSBBulkContainer usbdata;
+
+	/* build appropriate USB container */
+	usbdata.length=htod32(PTP_USB_BULK_HDR_LEN+size);
+	usbdata.type=htod16(PTP_USB_CONTAINER_DATA);
+	usbdata.code=htod16(ptp->Code);
+	usbdata.trans_id=htod32(ptp->Transaction_ID);
+	memcpy(usbdata.payload.data,data,
+		(size<PTP_USB_BULK_PAYLOAD_LEN)?size:PTP_USB_BULK_PAYLOAD_LEN);
+	/* send first part of data */
+	ret=params->write_func((unsigned char *)&usbdata, PTP_USB_BULK_HDR_LEN+
+		((size<PTP_USB_BULK_PAYLOAD_LEN)?size:PTP_USB_BULK_PAYLOAD_LEN),
+		params->data);
+	if (ret!=PTP_RC_OK) {
+		ret = PTP_ERROR_IO;
+/*		ptp_error (params,
+		"PTP: request code 0x%04x sending data error 0x%04x",
+			ptp->Code,ret);*/
+		return ret;
+	}
+	if (size<=PTP_USB_BULK_PAYLOAD_LEN) return ret;
+	/* if everything OK send the rest */
+	ret=params->write_func (data+PTP_USB_BULK_PAYLOAD_LEN,
+				size-PTP_USB_BULK_PAYLOAD_LEN, params->data);
+	if (ret!=PTP_RC_OK) {
+		ret = PTP_ERROR_IO;
+/*		ptp_error (params,
+		"PTP: request code 0x%04x sending data error 0x%04x",
+			ptp->Code,ret);*/
+	}
+	return ret;
+}
+
+uint16_t
+ptp_usb_getdata (PTPParams* params, PTPContainer* ptp,
+		unsigned char **data)
+{
+	uint16_t ret;
+	PTPUSBBulkContainer usbdata;
+
+	PTP_CNT_INIT(usbdata);
+	if (*data!=NULL) return PTP_ERROR_BADPARAM;
+	do {
+		unsigned int len;
+		/* read first(?) part of data */
+		ret=params->read_func((unsigned char *)&usbdata,
+				sizeof(usbdata), params->data);
+		if (ret!=PTP_RC_OK) {
+			ret = PTP_ERROR_IO;
+			break;
+		} else
+		if (dtoh16(usbdata.type)!=PTP_USB_CONTAINER_DATA) {
+			ret = PTP_ERROR_DATA_EXPECTED;
+			break;
+		} else
+		if (dtoh16(usbdata.code)!=ptp->Code) {
+			ret = dtoh16(usbdata.code);
+			break;
+		}
+		/* evaluate data length */
+		len=dtoh32(usbdata.length)-PTP_USB_BULK_HDR_LEN;
+		/* allocate memory for data */
+		*data=calloc(len,1);
+		/* copy first part of data to 'data' */
+		memcpy(*data,usbdata.payload.data,
+			PTP_USB_BULK_PAYLOAD_LEN<len?
+			PTP_USB_BULK_PAYLOAD_LEN:len);
+		/* is that all of data? */
+		if (len+PTP_USB_BULK_HDR_LEN<=sizeof(usbdata)) break;
+		/* if not finaly read the rest of it */
+		ret=params->read_func(((unsigned char *)(*data))+
+					PTP_USB_BULK_PAYLOAD_LEN,
+					len-PTP_USB_BULK_PAYLOAD_LEN,
+					params->data);
+		if (ret!=PTP_RC_OK) {
+			ret = PTP_ERROR_IO;
+			break;
+		}
+	} while (0);
+/*
+	if (ret!=PTP_RC_OK) {
+		ptp_error (params,
+		"PTP: request code 0x%04x getting data error 0x%04x",
+			ptp->Code, ret);
+	}*/
+	return ret;
+}
+
+uint16_t
+ptp_usb_getresp (PTPParams* params, PTPContainer* resp)
+{
+	uint16_t ret;
+	PTPUSBBulkContainer usbresp;
+
+	PTP_CNT_INIT(usbresp);
+	/* read response, it should never be longer than sizeof(usbresp) */
+	ret=params->read_func((unsigned char *)&usbresp,
+				sizeof(usbresp), params->data);
+
+	if (ret!=PTP_RC_OK) {
+		ret = PTP_ERROR_IO;
+	} else
+	if (dtoh16(usbresp.type)!=PTP_USB_CONTAINER_RESPONSE) {
+		ret = PTP_ERROR_RESP_EXPECTED;
+	} else
+	if (dtoh16(usbresp.code)!=resp->Code) {
+		ret = dtoh16(usbresp.code);
+	}
+	if (ret!=PTP_RC_OK) {
+/*		ptp_error (params,
+		"PTP: request code 0x%04x getting resp error 0x%04x",
+			resp->Code, ret);*/
+		return ret;
+	}
+	/* build an appropriate PTPContainer */
+	resp->Code=dtoh16(usbresp.code);
+	resp->SessionID=params->session_id;
+	resp->Transaction_ID=dtoh32(usbresp.trans_id);
+	resp->Param1=dtoh32(usbresp.payload.params.param1);
+	resp->Param2=dtoh32(usbresp.payload.params.param2);
+	resp->Param3=dtoh32(usbresp.payload.params.param3);
+	resp->Param4=dtoh32(usbresp.payload.params.param4);
+	resp->Param5=dtoh32(usbresp.payload.params.param5);
+	return ret;
+}
+
+// major PTP functions
+
+// Transaction data phase description
+#define PTP_DP_NODATA		0x0000	// No Data Phase
+#define PTP_DP_SENDDATA		0x0001	// sending data
+#define PTP_DP_GETDATA		0x0002	// geting data
+#define PTP_DP_DATA_MASK	0x00ff	// data phase mask
+
+// Number of PTP Request phase parameters
+#define PTP_RQ_PARAM0		0x0000	// zero parameters
+#define PTP_RQ_PARAM1		0x0100	// one parameter
+#define PTP_RQ_PARAM2		0x0200	// two parameters
+#define PTP_RQ_PARAM3		0x0300	// three parameters
+#define PTP_RQ_PARAM4		0x0400	// four parameters
+#define PTP_RQ_PARAM5		0x0500	// five parameters
 
 /**
- * ptp_opensession:
- * @params: #PTPParams
+ * ptp_transaction:
+ * params:	PTPParams*
+ * 		PTPContainer* ptp	- general ptp container
+ * 		uint16_t flags		- lower 8 bits - data phase description
+ * 		unsigned int sendlen	- senddata phase data length
+ * 		char** data		- send or receive data buffer pointer
  *
- * Establishes a new connection.
+ * Performs PTP transaction. ptp is a PTPContainer with appropriate fields
+ * filled in (i.e. operation code and parameters). It's up to caller to do
+ * so.
+ * The flags decide thether the transaction has a data phase and what is its
+ * direction (send or receive). 
+ * If transaction is sending data the sendlen should contain its length in
+ * bytes, otherwise it's ignored.
+ * The data should contain an address of a pointer to data going to be sent
+ * or is filled with such a pointer address if data are received depending
+ * od dataphase direction (send or received) or is beeing ignored (no
+ * dataphase).
+ * The memory for a pointer should be preserved by the caller, if data are
+ * beeing retreived the appropriate amount of memory is beeing allocated
+ * (the caller should handle that!).
+ *
+ * Return values: Some PTP_RC_* code.
+ * Upon success PTPContainer* ptp contains PTP Response Phase container with
+ * all fields filled in.
+ **/
+static uint16_t
+ptp_transaction (PTPParams* params, PTPContainer* ptp, 
+			uint16_t flags, unsigned int sendlen, char** data)
+{
+	if ((params==NULL) || (ptp==NULL)) 
+		return PTP_ERROR_BADPARAM;
+	
+	ptp->Transaction_ID=params->transaction_id++;
+	ptp->SessionID=params->session_id;
+	// send request
+	CHECK_PTP_RC(params->sendreq_func (params, ptp));
+	// is there a dataphase?
+	switch (flags&PTP_DP_DATA_MASK) {
+		case PTP_DP_SENDDATA:
+			CHECK_PTP_RC(params->senddata_func(params, ptp,
+				*data, sendlen));
+			break;
+		case PTP_DP_GETDATA:
+			CHECK_PTP_RC(params->getdata_func(params, ptp,
+				(unsigned char**)data));
+			break;
+		case PTP_DP_NODATA:
+			break;
+		default:
+		return PTP_ERROR_BADPARAM;
+	}
+	// get response
+	CHECK_PTP_RC(params->getresp_func(params, ptp));
+	return PTP_RC_OK;
+}
+
+// Enets handling functions
+
+// PTP Events wait for or check mode
+#define PTP_EVENT_CHECK			0x0000	// waits for
+#define PTP_EVENT_CHECK_FAST		0x0001	// checks
+
+static inline uint16_t
+ptp_usb_event (PTPParams* params, PTPContainer* event, int wait)
+{
+	uint16_t ret;
+	PTPUSBEventContainer usbevent;
+	PTP_CNT_INIT(usbevent);
+
+	if ((params==NULL) || (event==NULL)) 
+		return PTP_ERROR_BADPARAM;
+	
+	switch(wait) {
+		case PTP_EVENT_CHECK:
+			ret=params->check_int_func((unsigned char*)&usbevent,
+				sizeof(usbevent), params->data);
+			break;
+		case PTP_EVENT_CHECK_FAST:
+			ret=params->check_int_fast_func((unsigned char*)
+				&usbevent, sizeof(usbevent), params->data);
+			break;
+		default:
+			ret=PTP_ERROR_BADPARAM;
+	}
+	if (ret!=PTP_RC_OK) {
+		ret = PTP_ERROR_IO;
+		ptp_error (params,
+			"PTP: reading event an error 0x%04x occured", ret);
+		/* reading event error is nonfatal (for example timeout) */
+	} 
+	/* if we read anything over interrupt endpoint it must be an event */
+	/* build an appropriate PTPContainer */
+	event->Code=dtoh16(usbevent.code);
+	event->SessionID=params->session_id;
+	event->Transaction_ID=dtoh32(usbevent.trans_id);
+	event->Param1=dtoh32(usbevent.param1);
+	event->Param2=dtoh32(usbevent.param2);
+	event->Param3=dtoh32(usbevent.param3);
+
+	return ret;
+}
+
+uint16_t
+ptp_usb_event_check (PTPParams* params, PTPContainer* event) {
+
+	return ptp_usb_event (params, event, PTP_EVENT_CHECK_FAST);
+}
+
+uint16_t
+ptp_usb_event_wait (PTPParams* params, PTPContainer* event) {
+
+	return ptp_usb_event (params, event, PTP_EVENT_CHECK);
+}
+
+/**
+ * PTP operation functions
+ *
+ * all ptp_ functions should take integer parameters
+ * in host byte order!
+ **/
+
+
+/**
+ * ptp_getdeviceinfo:
+ * params:	PTPParams*
+ *
+ * Gets device info dataset and fills deviceinfo structure.
  *
  * Return values: Some PTP_RC_* code.
  **/
-short
-ptp_opensession(PTPParams* params, int session)
+uint16_t
+ptp_getdeviceinfo (PTPParams* params, PTPDeviceInfo* deviceinfo)
 {
-	short ret;
-	PTPReq* req=malloc(sizeof(PTPReq));
-	
-	memset(req, 0, PTP_RESP_LEN);
-	*(int *)(req->data)=session;
-	ret=ptp_sendreq(params, req, PTP_OC_OpenSession);
-	if (ret!=PTP_RC_OK) {
-		ptp_error (params, "ptp_opensession sending req");
-		free(req);
-		return PTP_ERROR_IO;
-	}
-	ret=ptp_getresp(params, req);
-	if ((ret!=PTP_RC_OK) ||
-		(req->type!=PTP_TYPE_RESP) || (req->code!=PTP_RC_OK)) {
-		ptp_error (params, "ptp_opensession getting resp");
-#ifdef DEBUG
-		ptp_error (params, "OpenSession resp:\nlen=0x%8.8x"
-		" type=0x%4.4x code=0x%4.4x ID=0x%8.8x\n",
-		req->len, req->type, req->code, req->trans_id);
-#endif
-		if (ret!=PTP_RC_OK) ret=PTP_ERROR_IO; else
-			ret=(req->type==PTP_TYPE_RESP)?
-				req->code:PTP_ERROR_RESP_EXPECTED;
-		free(req);
-		return ret;
-	}
-	free(req);
-	return PTP_RC_OK;
-}
+	uint16_t ret;
+	PTPContainer ptp;
+	char* di=NULL;
 
-short
-ptp_closesession(PTPParams* params)
-{
-	short ret;
-	PTPReq* req=malloc(sizeof(PTPReq));
-	
-	memset(req, 0, PTP_RESP_LEN);
-	ret=ptp_sendreq(params, req, PTP_OC_CloseSession);
-	if (ret!=PTP_RC_OK) {
-		ptp_error (params, "ptp_closesession sending req");
-		free(req);
-		return PTP_ERROR_IO;
-	}
-	ret=ptp_getresp(params, req);
-	if ((ret!=PTP_RC_OK) ||
-		(req->type!=PTP_TYPE_RESP) || (req->code!=PTP_RC_OK)) {
-		ptp_error (params, "ptp_closesession getting resp");
-#ifdef DEBUG
-		ptp_error (params, "CloseSession resp:\nlen=0x%8.8x" 
-		" type=0x%4.4x code=0x%4.4x ID=0x%8.8x\n",
-		req->len, req->type, req->code, req->trans_id);
-#endif
-		if (ret!=PTP_RC_OK) ret=PTP_ERROR_IO; else
-			ret=(req->type==PTP_TYPE_RESP)?
-				req->code:PTP_ERROR_RESP_EXPECTED;
-		free(req);
-		return ret;
-	}
-	free(req);
-	return PTP_RC_OK;
-}
-
-short
-ptp_getobjecthandles(PTPParams* params, PTPObjectHandles* objecthandles)
-{
-	short ret;
-	PTPReq* req=malloc(sizeof(PTPReq));
-	
-	if (objecthandles==NULL) {
-		free (req);
-		return PTP_ERROR_BADPARAM;
-	}
-	memset(req, 0, PTP_RESP_LEN);
-	*(int *)(req->data)=0xffffffff;   // XXX return from ALL stores
-	ret=ptp_sendreq(params, req, PTP_OC_GetObjectHandles);
-	if (ret!=PTP_RC_OK) {
-		ptp_error (params, "ptp_getobjecthandles sending req");
-		free(req);
-		return PTP_ERROR_IO;
-	}
-	ret=ptp_getdata(params, req);
-	if ((ret!=PTP_RC_OK) ||
-		(req->type!=PTP_TYPE_DATA) ||
-		(req->code!=PTP_OC_GetObjectHandles)) {
-		ptp_error (params, "ptp_getobjecthandles getting resp");
-#ifdef DEBUG
-		ptp_error (params, "GetObjectHandles data returned:\nlen=0x%8.8x"
-		" type=0x%4.4x code=0x%4.4x ID=0x%8.8x\n",
-		req->len, req->type, req->code, req->trans_id);
-#endif
-		if (ret!=PTP_RC_OK) ret=PTP_ERROR_IO; else
-			ret=(req->type==PTP_TYPE_DATA)?
-			req->code:PTP_ERROR_DATA_EXPECTED;
-		free(req);
-		return ret;
-	}
-	memcpy(objecthandles,req->data,sizeof(PTPObjectHandles));
-	ret=ptp_getresp(params, req);
-	if ((ret!=PTP_RC_OK) ||
-		(req->type!=PTP_TYPE_RESP) || (req->code!=PTP_RC_OK)) {
-		 ptp_error (params, "ptp_getobjecthandles getting resp");
-#ifdef DEBUG
-		 ptp_error (params, "GetObjectHandles resp:\nlen=0x%8.8x"
-		 " type=0x%4.4x code=0x%4.4x ID=0x%8.8x\n",
-		 req->len, req->type, req->code, req->trans_id);
-#endif
-		 if (ret!=PTP_RC_OK) ret=PTP_ERROR_IO; else
-			 ret=(req->type==PTP_TYPE_RESP)?
-			 	req->code:PTP_ERROR_RESP_EXPECTED;
-		free(req);
-		return ret;
-	}
-	free(req);
-	return PTP_RC_OK;
-}
-
-short
-ptp_getobjectinfo(PTPParams* params, PTPObjectHandles* objecthandles,
-			int n, PTPObjectInfo* objectinfo)
-{
-	short ret;
-	if ((objecthandles==NULL)||(objectinfo==NULL))
-		return PTP_ERROR_BADPARAM;
-
-	{
-	PTPReq* req=malloc(sizeof(PTPReq));
-	
-	memset(req, 0, PTP_RESP_LEN);
-	*(int *)(req->data)=objecthandles->handler[n];
-	ret=ptp_sendreq(params, req, PTP_OC_GetObjectInfo);
-	if (ret!=PTP_RC_OK) {
-		ptp_error (params, "ptp_getobjectinfo sending req");
-		free(req);
-		return PTP_ERROR_IO;
-	}
-	ret=ptp_getdata(params, req);
-	if ((ret!=PTP_RC_OK) ||
-		(req->type!=PTP_TYPE_DATA) ||
-		(req->code!=PTP_OC_GetObjectInfo)) {
-		ptp_error (params, "ptp_getobjectinfo getting data");
-#ifdef DEBUG
-		ptp_error (params, "GetObjectInfo data returned:\nlen=0x%8.8x"
-		"type=0x%4.4x code=0x%4.4x ID=0x%8.8x\n",
-		req->len, req->type, req->code, req->trans_id);
-#endif
-		if (ret!=PTP_RC_OK) ret=PTP_ERROR_IO; else
-			ret=(req->type==PTP_TYPE_DATA)?
-			req->code:PTP_ERROR_DATA_EXPECTED;
-		free(req);
-		return ret;
-	}
-	memcpy(objectinfo, req->data, sizeof(PTPObjectInfo));
-
-	ret=ptp_getresp(params, req);
-	if ((ret!=PTP_RC_OK) ||
-		(req->type!=PTP_TYPE_RESP) ||
-		(req->code!=PTP_RC_OK)) {
-		ptp_error (params, "ptp_getobjetsinfo getting resp");
-#ifdef DEBUG
-		ptp_error (params, "PTP_OC_GetObjectInfo resp:\nlen=0x%8.8x"
-		" type=0x%4.4x code=0x%4.4x ID=0x%8.8x\n",
-		req->len, req->type, req->code, req->trans_id);
-#endif
-		if (ret!=PTP_RC_OK) ret=PTP_ERROR_IO; else
-			ret=(req->type==PTP_TYPE_RESP)?
-				req->code:PTP_ERROR_RESP_EXPECTED;
-		free(req);
-		return ret;
-	}
-	free(req);
-	}
-	return PTP_RC_OK;
-}
-
-short
-ptp_getobject(PTPParams* params, PTPObjectHandles* objecthandles, 
-			PTPObjectInfo* objectinfo, int n,
-			char* object)
-{
-	short ret;
-	if ((objecthandles==NULL)||(objectinfo==NULL)||((object==NULL)))
-		return PTP_ERROR_BADPARAM;
-
-	{
-	PTPReq* req=malloc(sizeof(PTPReq));
-	PTPReq* ptr;
-	
-	memset(req, 0, PTP_RESP_LEN);
-	*(int *)(req->data)=objecthandles->handler[n];
-	ret=ptp_sendreq(params, req, PTP_OC_GetObject);
-	if (ret!=PTP_RC_OK) {
-		ptp_error (params, "ptp_getobject sending req");
-		free(req);
-		return PTP_ERROR_IO;
-	}
-	{
-	char* obj_tmp=malloc(objectinfo->ObjectCompressedSize+PTP_REQ_HDR_LEN);
-	ptr=req; req=(PTPReq*)obj_tmp;
-	ret=params->read_func((unsigned char *) req,
-		objectinfo->ObjectCompressedSize+PTP_REQ_HDR_LEN,
-		params->data);	
-	if ((ret!=PTP_RC_OK) ||
-		(req->type!=PTP_TYPE_DATA) ||
-		(req->code!=PTP_OC_GetObject)) {
-		ptp_error (params, "ptp_getobject getting data");
-#ifdef DEBUG
-		ptp_error (params, "GetObject data returned:\nlen=0x%8.8x"
-		"type=0x%4.4x code=0x%4.4x ID=0x%8.8x\n",
-		req->len, req->type, req->code, req->trans_id);
-#endif
-		if (ret!=PTP_RC_OK) ret=PTP_ERROR_IO; else
-			 ret=(req->type==PTP_TYPE_DATA)?
-			 req->code:PTP_ERROR_DATA_EXPECTED;
-		free(obj_tmp);
-		req=ptr;
-		free(req);
-		return ret;
-	}
-	memcpy(object, req->data, objectinfo->ObjectCompressedSize);
-	free(obj_tmp);
-	}
-	req=ptr;
-	ret=ptp_getresp(params, req);
-	if ((ret!=PTP_RC_OK) ||
-		(req->type!=PTP_TYPE_RESP) ||
-		(req->code!=PTP_RC_OK)) {
-		ptp_error (params, "ptp_getobject getting resp");
-#ifdef DEBUG
-		ptp_error (params, "GetObject data returned:\nlen=0x%8.8x"
-		"type=0x%4.4x code=0x%4.4x ID=0x%8.8x\n",
-		req->len, req->type, req->code, req->trans_id);
-#endif
-		free(req);
-		return ret;
-	}
-	free(req);
-	}
-	return PTP_RC_OK;
+	PTP_CNT_INIT(ptp);
+	ptp.Code=PTP_OC_GetDeviceInfo;
+	ptp.Nparam=0;
+	ret=ptp_transaction(params, &ptp, PTP_DP_GETDATA, 0, &di);
+	if (ret == PTP_RC_OK) ptp_unpack_DI(params, di, deviceinfo);
+	free(di);
+	return ret;
 }
 
 
-short
-ptp_getthumb(PTPParams* params, PTPObjectHandles* objecthandles, 
-			PTPObjectInfo* objectinfo, int n,
-			char* object)
+/**
+ * ptp_opensession:
+ * params:	PTPParams*
+ * 		session			- session number 
+ *
+ * Establishes a new session.
+ *
+ * Return values: Some PTP_RC_* code.
+ **/
+uint16_t
+ptp_opensession (PTPParams* params, uint32_t session)
 {
-	short ret;
-	if ((objecthandles==NULL)||(objectinfo==NULL)||((object==NULL)))
-		return PTP_ERROR_BADPARAM;
+	uint16_t ret;
+	PTPContainer ptp;
 
-	{
-	PTPReq* req=malloc(sizeof(PTPReq));
-	PTPReq* ptr;
+	ptp_debug(params,"PTP: Opening session");
+
+	/* SessonID field of the operation dataset should always
+	   be set to 0 for OpenSession request! */
+	params->session_id=0x00000000;
+	/* TransactionID should be set to 0 also! */
+	params->transaction_id=0x0000000;
 	
-	memset(req, 0, PTP_RESP_LEN);
-	*(int *)(req->data)=objecthandles->handler[n];
-	ret=ptp_sendreq(params, req, PTP_OC_GetThumb);
-	if (ret!=PTP_RC_OK) {
-		ptp_error (params, "ptp_getobject sending req");
-		free(req);
-		return PTP_ERROR_IO;
+	PTP_CNT_INIT(ptp);
+	ptp.Code=PTP_OC_OpenSession;
+	ptp.Param1=session;
+	ptp.Nparam=1;
+	ret=ptp_transaction(params, &ptp, PTP_DP_NODATA, 0, NULL);
+	/* now set the global session id to current session number */
+	params->session_id=session;
+	return ret;
+}
+
+/**
+ * ptp_closesession:
+ * params:	PTPParams*
+ *
+ * Closes session.
+ *
+ * Return values: Some PTP_RC_* code.
+ **/
+uint16_t
+ptp_closesession (PTPParams* params)
+{
+	PTPContainer ptp;
+
+	ptp_debug(params,"PTP: Closing session");
+
+	PTP_CNT_INIT(ptp);
+	ptp.Code=PTP_OC_CloseSession;
+	ptp.Nparam=0;
+	return ptp_transaction(params, &ptp, PTP_DP_NODATA, 0, NULL);
+}
+
+/**
+ * ptp_getststorageids:
+ * params:	PTPParams*
+ *
+ * Gets array of StorageiDs and fills the storageids structure.
+ *
+ * Return values: Some PTP_RC_* code.
+ **/
+uint16_t
+ptp_getstorageids (PTPParams* params, PTPStorageIDs* storageids)
+{
+	uint16_t ret;
+	PTPContainer ptp;
+	char* sids=NULL;
+
+	PTP_CNT_INIT(ptp);
+	ptp.Code=PTP_OC_GetStorageIDs;
+	ptp.Nparam=0;
+	ret=ptp_transaction(params, &ptp, PTP_DP_GETDATA, 0, &sids);
+	if (ret == PTP_RC_OK) ptp_unpack_SIDs(params, sids, storageids);
+	free(sids);
+	return ret;
+}
+
+/**
+ * ptp_getststorageinfo:
+ * params:	PTPParams*
+ *		storageid		- StorageID
+ *
+ * Gets StorageInfo dataset of desired storage and fills storageinfo
+ * structure.
+ *
+ * Return values: Some PTP_RC_* code.
+ **/
+uint16_t
+ptp_getstorageinfo (PTPParams* params, uint32_t storageid,
+			PTPStorageInfo* storageinfo)
+{
+	uint16_t ret;
+	PTPContainer ptp;
+	char* si=NULL;
+
+	PTP_CNT_INIT(ptp);
+	ptp.Code=PTP_OC_GetStorageInfo;
+	ptp.Param1=storageid;
+	ptp.Nparam=1;
+	ret=ptp_transaction(params, &ptp, PTP_DP_GETDATA, 0, &si);
+	if (ret == PTP_RC_OK) ptp_unpack_SI(params, si, storageinfo);
+	free(si);
+	return ret;
+}
+
+/**
+ * ptp_getobjecthandles:
+ * params:	PTPParams*
+ *		storage			- StorageID
+ *		objectformatcode	- ObjectFormatCode (optional)
+ *		associationOH		- ObjectHandle of Association for
+ *					  wich a list of children is desired
+ *					  (optional)
+ *		objecthandles		- pointer to structute
+ *
+ * Fills objecthandles with structure returned by device.
+ *
+ * Return values: Some PTP_RC_* code.
+ **/
+uint16_t
+ptp_getobjecthandles (PTPParams* params, uint32_t storage,
+			uint32_t objectformatcode, uint32_t associationOH,
+			PTPObjectHandles* objecthandles)
+{
+	uint16_t ret;
+	PTPContainer ptp;
+	char* oh=NULL;
+
+	PTP_CNT_INIT(ptp);
+	ptp.Code=PTP_OC_GetObjectHandles;
+	ptp.Param1=storage;
+	ptp.Param2=objectformatcode;
+	ptp.Param3=associationOH;
+	ptp.Nparam=3;
+	ret=ptp_transaction(params, &ptp, PTP_DP_GETDATA, 0, &oh);
+	if (ret == PTP_RC_OK) ptp_unpack_OH(params, oh, objecthandles);
+	free(oh);
+	return ret;
+}
+
+uint16_t
+ptp_getobjectinfo (PTPParams* params, uint32_t handle,
+			PTPObjectInfo* objectinfo)
+{
+	uint16_t ret;
+	PTPContainer ptp;
+	char* oi=NULL;
+
+	PTP_CNT_INIT(ptp);
+	ptp.Code=PTP_OC_GetObjectInfo;
+	ptp.Param1=handle;
+	ptp.Nparam=1;
+	ret=ptp_transaction(params, &ptp, PTP_DP_GETDATA, 0, &oi);
+	if (ret == PTP_RC_OK) ptp_unpack_OI(params, oi, objectinfo);
+	free(oi);
+	return ret;
+}
+
+uint16_t
+ptp_getobject (PTPParams* params, uint32_t handle, char** object)
+{
+	PTPContainer ptp;
+
+	PTP_CNT_INIT(ptp);
+	ptp.Code=PTP_OC_GetObject;
+	ptp.Param1=handle;
+	ptp.Nparam=1;
+	return ptp_transaction(params, &ptp, PTP_DP_GETDATA, 0, object);
+}
+
+
+uint16_t
+ptp_getthumb (PTPParams* params, uint32_t handle,  char** object)
+{
+	PTPContainer ptp;
+
+	PTP_CNT_INIT(ptp);
+	ptp.Code=PTP_OC_GetThumb;
+	ptp.Param1=handle;
+	ptp.Nparam=1;
+	return ptp_transaction(params, &ptp, PTP_DP_GETDATA, 0, object);
+}
+
+/**
+ * ptp_deleteobject:
+ * params:	PTPParams*
+ *		handle			- object handle
+ *		ofc			- object format code (optional)
+ * 
+ * Deletes desired objects.
+ *
+ * Return values: Some PTP_RC_* code.
+ **/
+uint16_t
+ptp_deleteobject (PTPParams* params, uint32_t handle,
+			uint32_t ofc)
+{
+	PTPContainer ptp;
+
+	PTP_CNT_INIT(ptp);
+	ptp.Code=PTP_OC_DeleteObject;
+	ptp.Param1=handle;
+	ptp.Param2=ofc;
+	ptp.Nparam=2;
+	return ptp_transaction(params, &ptp, PTP_DP_NODATA, 0, NULL);
+}
+
+/**
+ * ptp_sendobjectinfo:
+ * params:	PTPParams*
+ *		uint32_t* store		- destination StorageID on Responder
+ *		uint32_t* parenthandle 	- Parent ObjectHandle on responder
+ * 		uint32_t* handle	- see Return values
+ *		PTPObjectInfo* objectinfo- ObjectInfo that is to be sent
+ * 
+ * Sends ObjectInfo of file that is to be sent via SendFileObject.
+ *
+ * Return values: Some PTP_RC_* code.
+ * Upon success : uint32_t* store	- Responder StorageID in which
+ *					  object will be stored
+ *		  uint32_t* parenthandle- Responder Parent ObjectHandle
+ *					  in which the object will be stored
+ *		  uint32_t* handle	- Responder's reserved ObjectHandle
+ *					  for the incoming object
+ **/
+uint16_t
+ptp_sendobjectinfo (PTPParams* params, uint32_t* store, 
+			uint32_t* parenthandle, uint32_t* handle,
+			PTPObjectInfo* objectinfo)
+{
+	uint16_t ret;
+	PTPContainer ptp;
+	char* oidata=NULL;
+	uint32_t size;
+
+	PTP_CNT_INIT(ptp);
+	ptp.Code=PTP_OC_SendObjectInfo;
+	ptp.Param1=*store;
+	ptp.Param2=*parenthandle;
+	ptp.Nparam=2;
+	
+	size=ptp_pack_OI(params, objectinfo, &oidata);
+	ret=ptp_transaction(params, &ptp, PTP_DP_SENDDATA, size, &oidata); 
+	free(oidata);
+	*store=ptp.Param1;
+	*parenthandle=ptp.Param2;
+	*handle=ptp.Param3; 
+	return ret;
+}
+
+/**
+ * ptp_sendobject:
+ * params:	PTPParams*
+ *		char*	object		- contains the object that is to be sent
+ *		uint32_t size		- object size
+ *		
+ * Sends object to Responder.
+ *
+ * Return values: Some PTP_RC_* code.
+ *
+ */
+uint16_t
+ptp_sendobject (PTPParams* params, char* object, uint32_t size)
+{
+	PTPContainer ptp;
+
+	PTP_CNT_INIT(ptp);
+	ptp.Code=PTP_OC_SendObject;
+	ptp.Nparam=0;
+
+	return ptp_transaction(params, &ptp, PTP_DP_SENDDATA, size, &object);
+}
+
+
+/**
+ * ptp_initiatecapture:
+ * params:	PTPParams*
+ *		storageid		- destination StorageID on Responder
+ *		ofc			- object format code
+ * 
+ * Causes device to initiate the capture of one or more new data objects
+ * according to its current device properties, storing the data into store
+ * indicated by storageid. If storageid is 0x00000000, the object(s) will
+ * be stored in a store that is determined by the capturing device.
+ * The capturing of new data objects is an asynchronous operation.
+ *
+ * Return values: Some PTP_RC_* code.
+ **/
+
+uint16_t
+ptp_initiatecapture (PTPParams* params, uint32_t storageid,
+			uint32_t ofc)
+{
+	PTPContainer ptp;
+
+	PTP_CNT_INIT(ptp);
+	ptp.Code=PTP_OC_InitiateCapture;
+	ptp.Param1=storageid;
+	ptp.Param2=ofc;
+	ptp.Nparam=2;
+	return ptp_transaction(params, &ptp, PTP_DP_NODATA, 0, NULL);
+}
+
+uint16_t
+ptp_getdevicepropdesc (PTPParams* params, uint16_t propcode, 
+			PTPDevicePropDesc* devicepropertydesc)
+{
+	PTPContainer ptp;
+	uint16_t ret;
+	char* dpd=NULL;
+
+	PTP_CNT_INIT(ptp);
+	ptp.Code=PTP_OC_GetDevicePropDesc;
+	ptp.Param1=propcode;
+	ptp.Nparam=1;
+	ret=ptp_transaction(params, &ptp, PTP_DP_GETDATA, 0, &dpd);
+	if (ret == PTP_RC_OK) ptp_unpack_DPD(params, dpd, devicepropertydesc);
+	free(dpd);
+	return ret;
+}
+
+
+uint16_t
+ptp_getdevicepropvalue (PTPParams* params, uint16_t propcode,
+			void* value, uint16_t datatype)
+{
+	PTPContainer ptp;
+	uint16_t ret;
+	char* dpv=NULL;
+
+
+	PTP_CNT_INIT(ptp);
+	ptp.Code=PTP_OC_GetDevicePropValue;
+	ptp.Param1=propcode;
+	ptp.Nparam=1;
+	ret=ptp_transaction(params, &ptp, PTP_DP_GETDATA, 0, &dpv);
+	if (ret == PTP_RC_OK) ptp_unpack_DPV(params, dpv, value, datatype);
+	free(dpv);
+	return ret;
+}
+
+uint16_t
+ptp_setdevicepropvalue (PTPParams* params, uint16_t propcode,
+			void* value, uint16_t datatype)
+{
+	PTPContainer ptp;
+	uint16_t ret;
+	uint32_t size;
+	char* dpv=NULL;
+
+	PTP_CNT_INIT(ptp);
+	ptp.Code=PTP_OC_SetDevicePropValue;
+	ptp.Param1=propcode;
+	ptp.Nparam=1;
+	size=ptp_pack_DPV(params, value, &dpv, datatype);
+	ret=ptp_transaction(params, &ptp, PTP_DP_SENDDATA, size, &dpv);
+	free(dpv);
+	return ret;
+}
+
+/**
+ * ptp_ek_sendfileobjectinfo:
+ * params:	PTPParams*
+ *		uint32_t* store		- destination StorageID on Responder
+ *		uint32_t* parenthandle 	- Parent ObjectHandle on responder
+ * 		uint32_t* handle	- see Return values
+ *		PTPObjectInfo* objectinfo- ObjectInfo that is to be sent
+ * 
+ * Sends ObjectInfo of file that is to be sent via SendFileObject.
+ *
+ * Return values: Some PTP_RC_* code.
+ * Upon success : uint32_t* store	- Responder StorageID in which
+ *					  object will be stored
+ *		  uint32_t* parenthandle- Responder Parent ObjectHandle
+ *					  in which the object will be stored
+ *		  uint32_t* handle	- Responder's reserved ObjectHandle
+ *					  for the incoming object
+ **/
+uint16_t
+ptp_ek_sendfileobjectinfo (PTPParams* params, uint32_t* store, 
+			uint32_t* parenthandle, uint32_t* handle,
+			PTPObjectInfo* objectinfo)
+{
+	uint16_t ret;
+	PTPContainer ptp;
+	char* oidata=NULL;
+	uint32_t size;
+
+	PTP_CNT_INIT(ptp);
+	ptp.Code=PTP_OC_EK_SendFileObjectInfo;
+	ptp.Param1=*store;
+	ptp.Param2=*parenthandle;
+	ptp.Nparam=2;
+	
+	size=ptp_pack_OI(params, objectinfo, &oidata);
+	ret=ptp_transaction(params, &ptp, PTP_DP_SENDDATA, size, &oidata); 
+	free(oidata);
+	*store=ptp.Param1;
+	*parenthandle=ptp.Param2;
+	*handle=ptp.Param3; 
+	return ret;
+}
+
+/**
+ * ptp_ek_sendfileobject:
+ * params:	PTPParams*
+ *		char*	object		- contains the object that is to be sent
+ *		uint32_t size		- object size
+ *		
+ * Sends object to Responder.
+ *
+ * Return values: Some PTP_RC_* code.
+ *
+ */
+uint16_t
+ptp_ek_sendfileobject (PTPParams* params, char* object, uint32_t size)
+{
+	PTPContainer ptp;
+
+	PTP_CNT_INIT(ptp);
+	ptp.Code=PTP_OC_EK_SendFileObject;
+	ptp.Nparam=0;
+
+	return ptp_transaction(params, &ptp, PTP_DP_SENDDATA, size, &object);
+}
+
+/* Non PTP protocol functions */
+/* devinfo testing functions */
+
+int
+ptp_operation_issupported(PTPParams* params, uint16_t operation)
+{
+	int i=0;
+
+	for (;i<params->deviceinfo.OperationsSupported_len;i++) {
+		if (params->deviceinfo.OperationsSupported[i]==operation)
+			return 1;
 	}
-	{
-	char* obj_tmp=malloc(objectinfo->ObjectCompressedSize+PTP_REQ_HDR_LEN);
-	ptr=req; req=(PTPReq*)obj_tmp;
-	ret=params->read_func((unsigned char *) req,
-		objectinfo->ObjectCompressedSize+PTP_REQ_HDR_LEN,
-		params->data);	
-	if ((ret!=PTP_RC_OK) ||
-		(req->type!=PTP_TYPE_DATA) ||
-		(req->code!=PTP_OC_GetThumb)) {
-		ptp_error (params, "ptp_getobject getting data");
-#ifdef DEBUG
-		ptp_error (params, "GetObject data returned:\nlen=0x%8.8x"
-		"type=0x%4.4x code=0x%4.4x ID=0x%8.8x\n",
-		req->len, req->type, req->code, req->trans_id);
-#endif
-		if (ret!=PTP_RC_OK) ret=PTP_ERROR_IO; else
-			 ret=(req->type==PTP_TYPE_DATA)?
-			 req->code:PTP_ERROR_DATA_EXPECTED;
-		free(obj_tmp);
-		req=ptr;
-		free(req);
-		return ret;
+	return 0;
+}
+
+
+int
+ptp_property_issupported(PTPParams* params, uint16_t property)
+{
+	int i=0;
+
+	for (;i<params->deviceinfo.DevicePropertiesSupported_len;i++) {
+		if (params->deviceinfo.DevicePropertiesSupported[i]==property)
+			return 1;
 	}
-	memcpy(object, req->data, objectinfo->ObjectCompressedSize);
-	free(obj_tmp);
+	return 0;
+}
+
+// ptp structures feeing functions
+
+void
+ptp_free_devicepropdesc(PTPDevicePropDesc* dpd)
+{
+	uint16_t i;
+
+	free(dpd->FactoryDefaultValue);
+	free(dpd->CurrentValue);
+	switch (dpd->FormFlag) {
+		case PTP_DPFF_Range:
+		free (dpd->FORM.Range.MinimumValue);
+		free (dpd->FORM.Range.MaximumValue);
+		free (dpd->FORM.Range.StepSize);
+		break;
+		case PTP_DPFF_Enumeration:
+		for (i=0;i<dpd->FORM.Enum.NumberOfValues;i++)
+			free(dpd->FORM.Enum.SupportedValue[i]);
+		free(dpd->FORM.Enum.SupportedValue);
 	}
-	req=ptr;
-	ret=ptp_getresp(params, req);
-	if ((ret!=PTP_RC_OK) ||
-		(req->type!=PTP_TYPE_RESP) ||
-		(req->code!=PTP_RC_OK)) {
-		ptp_error (params, "ptp_getobject getting resp");
-#ifdef DEBUG
-		ptp_error (params, "GetObject data returned:\nlen=0x%8.8x"
-		"type=0x%4.4x code=0x%4.4x ID=0x%8.8x\n",
-		req->len, req->type, req->code, req->trans_id);
-#endif
-		free(req);
-		return ret;
-	}
-	free(req);
-	}
-	return PTP_RC_OK;
+}
+
+void 
+ptp_perror(PTPParams* params, uint16_t error) {
+
+	int i;
+	// PTP error descriptions
+	static struct {
+		short n;
+		const char *txt;
+	} ptp_errors[] = {
+	{PTP_RC_Undefined, 		N_("PTP: Undefined Error")},
+	{PTP_RC_OK, 			N_("PTP: OK!")},
+	{PTP_RC_GeneralError, 		N_("PTP: General Error")},
+	{PTP_RC_SessionNotOpen, 	N_("PTP: Session Not Open")},
+	{PTP_RC_InvalidTransactionID, 	N_("PTP: Invalid Transaction ID")},
+	{PTP_RC_OperationNotSupported, 	N_("PTP: Operation Not Supported")},
+	{PTP_RC_ParameterNotSupported, 	N_("PTP: Parameter Not Supported")},
+	{PTP_RC_IncompleteTransfer, 	N_("PTP: Incomplete Transfer")},
+	{PTP_RC_InvalidStorageId, 	N_("PTP: Invalid Storage ID")},
+	{PTP_RC_InvalidObjectHandle, 	N_("PTP: Invalid Object Handle")},
+	{PTP_RC_DevicePropNotSupported, N_("PTP: Device Prop Not Supported")},
+	{PTP_RC_InvalidObjectFormatCode, N_("PTP: Invalid Object Format Code")},
+	{PTP_RC_StoreFull, 		N_("PTP: Store Full")},
+	{PTP_RC_ObjectWriteProtected, 	N_("PTP: Object Write Protected")},
+	{PTP_RC_StoreReadOnly, 		N_("PTP: Store Read Only")},
+	{PTP_RC_AccessDenied,		N_("PTP: Access Denied")},
+	{PTP_RC_NoThumbnailPresent, 	N_("PTP: No Thumbnail Present")},
+	{PTP_RC_SelfTestFailed, 	N_("PTP: Self Test Failed")},
+	{PTP_RC_PartialDeletion, 	N_("PTP: Partial Deletion")},
+	{PTP_RC_StoreNotAvailable, 	N_("PTP: Store Not Available")},
+	{PTP_RC_SpecificationByFormatUnsupported,
+				N_("PTP: Specification By Format Unsupported")},
+	{PTP_RC_NoValidObjectInfo, 	N_("PTP: No Valid Object Info")},
+	{PTP_RC_InvalidCodeFormat, 	N_("PTP: Invalid Code Format")},
+	{PTP_RC_UnknownVendorCode, 	N_("PTP: Unknown Vendor Code")},
+	{PTP_RC_CaptureAlreadyTerminated,
+					N_("PTP: Capture Already Terminated")},
+	{PTP_RC_DeviceBusy, 		N_("PTP: Device Bus")},
+	{PTP_RC_InvalidParentObject, 	N_("PTP: Invalid Parent Object")},
+	{PTP_RC_InvalidDevicePropFormat, N_("PTP: Invalid Device Prop Format")},
+	{PTP_RC_InvalidDevicePropValue, N_("PTP: Invalid Device Prop Value")},
+	{PTP_RC_InvalidParameter, 	N_("PTP: Invalid Parameter")},
+	{PTP_RC_SessionAlreadyOpened, 	N_("PTP: Session Already Opened")},
+	{PTP_RC_TransactionCanceled, 	N_("PTP: Transaction Canceled")},
+	{PTP_RC_SpecificationOfDestinationUnsupported,
+			N_("PTP: Specification Of Destination Unsupported")},
+	{PTP_RC_EK_FilenameRequired,	N_("PTP: EK Filename Required")},
+	{PTP_RC_EK_FilenameConflicts,	N_("PTP: EK Filename Conflicts")},
+	{PTP_RC_EK_FilenameInvalid,	N_("PTP: EK Filename Invalid")},
+
+	{PTP_ERROR_IO,		  N_("PTP: I/O error")},
+	{PTP_ERROR_BADPARAM,	  N_("PTP: Error: bad parameter")},
+	{PTP_ERROR_DATA_EXPECTED, N_("PTP: Protocol error, data expected")},
+	{PTP_ERROR_RESP_EXPECTED, N_("PTP: Protocol error, response expected")},
+	{0, NULL}
+};
+
+	for (i=0; ptp_errors[i].txt!=NULL; i++)
+		if (ptp_errors[i].n == error)
+			ptp_error(params, ptp_errors[i].txt);
 }

@@ -1,12 +1,10 @@
-camlibdir = $(prefix)/lib/gphoto2
-camlib_LTLIBRARIES = libgphoto2_ptp.la
+EXTRA_DIST = ptp-pack.c
 
-INCLUDES = -I$(top_srcdir)/libgphoto2
+lib_LTLIBRARIES = libptp2.la
 
-libgphoto2_ptp_la_SOURCES = ptp.c ptp.h library.c
+libptp2_la_SOURCES = ptp.c ptp.h
+libptp2_la_LDFLAGS = -module -avoid-version
 
-libgphoto2_ptp_la_LDFLAGS =\
- -module -avoid-version\
- -L$(shell pwd)/$(top_builddir)/libgphoto2/@dotlibs@
-
-libgphoto2_ptp_la_LIBADD = -lgphoto2
+noinst_PROGRAMS = ptpcam
+ptpcam_SOURCES = ptpcam.c
+ptpcam_LDADD = -lusb ptp.o
