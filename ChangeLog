@@ -1,3 +1,8 @@
+2003-07-18 Mariusz Woloszyn
+	* ptp.h: changed #include <libptp-endian.h> to
+	  #include "libptp-endian.h"
+	* m4/byteorder.m4: chabged #include <_stdint.h> to
+	  #include "_stdint.h"
 2003-06-23 Mariusz Woloszyn
 	* configure.in: after reading autoconf documentation (yes, some people
 	  do really read documentation) i found that --disable-ptpcam is the

@@ -23,7 +23,7 @@
 
 #include <stdarg.h>
 #include <time.h>
-#include <libptp-endian.h>
+#include "libptp-endian.h"
 
 // PTP datalayer byteorder
 
