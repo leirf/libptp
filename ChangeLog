@@ -1,3 +1,6 @@
+2003-12-18 Mariusz Woloszyn
+	* ptp.c, ptp-h.c, ptp-pack.c: added Canon specific PTP extension
+	  code by Nikolai Kopanygin
 2003-12-17 Mariusz Woloszyn
 	* ptp.c, ptp.h, ptp-pack.c: changed comments from // to /* */
 	* ptpcam.c: fixed a bug that caused ptoprties names to not be displayed
