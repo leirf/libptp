@@ -1,8 +1,11 @@
-2003-04-19 Mariusz Woloszyn
+2003-05-23 mariusz Woloszyn
+	* README: at last (but not least) the great README!!!
+	* ptpcam.c: a couple of typos
+2003-05-19 Mariusz Woloszyn
 	* Makefile.am: reorganized configure to build without ptpcam
 	* configure.in: allowed configure --without-ptpcam
 	* TODO: new TODO for standalone 1.0 release
-2003-04-19 Mariusz Woloszyn
+2003-05-19 Mariusz Woloszyn
 	* Makefile.am: added library versioning (currrent varsion 1.0.0)
 	* configure.in: added library versioning (currrent varsion 1.0.0)
 	* ptpcam.c: changed displaying of property values
