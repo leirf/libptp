@@ -695,3 +695,178 @@ according to PTP specification.
 	 This property is intended to populate the Copyright field of an
 	 EXIF images.
 
+
+===================
+* Camera abilities*
+===================
+
+
+0.048332 PTP/library.c(2): Device info:
+0.048347 PTP/library.c(2): Manufacturer: Nikon Corporation
+0.048359 PTP/library.c(2):   model: E2500
+0.048370 PTP/library.c(2):   device version: E2500v1.0
+0.048380 PTP/library.c(2): Vendor extension description: Nikon PTP Extensions
+0.048391 PTP/library.c(2): Supported operations:
+0.048402 PTP/library.c(2):   0x1001
+0.048413 PTP/library.c(2):   0x1002
+0.048424 PTP/library.c(2):   0x1003
+0.048435 PTP/library.c(2):   0x1004
+0.048446 PTP/library.c(2):   0x1005
+0.048457 PTP/library.c(2):   0x1006
+0.048468 PTP/library.c(2):   0x1007
+0.048479 PTP/library.c(2):   0x1008
+0.048490 PTP/library.c(2):   0x1009
+0.048500 PTP/library.c(2):   0x100a
+0.048511 PTP/library.c(2):   0x100b
+0.048522 PTP/library.c(2):   0x101b
+
+
+0.309772 PTP/library.c(2): Device info:
+0.309976 PTP/library.c(2): Manufacturer: Canon Inc.
+0.310211 PTP/library.c(2):   model: Canon DIGITAL IXUS 400
+0.310427 PTP/library.c(2):   device version:
+0.310634 PTP/library.c(2): Vendor extension description: (null)
+0.310861 PTP/library.c(2): Supported operations:
+0.311066 PTP/library.c(2):   0x1001
+0.311260 PTP/library.c(2):   0x1002
+0.311455 PTP/library.c(2):   0x1003
+0.311650 PTP/library.c(2):   0x1004
+0.311844 PTP/library.c(2):   0x1005
+0.312039 PTP/library.c(2):   0x1006
+0.312233 PTP/library.c(2):   0x1007
+0.312476 PTP/library.c(2):   0x1008
+0.312674 PTP/library.c(2):   0x1009
+0.312869 PTP/library.c(2):   0x100a
+0.313064 PTP/library.c(2):   0x100b
+0.313259 PTP/library.c(2):   0x100c
+0.313457 PTP/library.c(2):   0x100d
+0.313651 PTP/library.c(2):   0x100e
+0.313846 PTP/library.c(2):   0x100f
+0.314039 PTP/library.c(2):   0x1012
+0.314233 PTP/library.c(2):   0x1014
+0.321675 PTP/library.c(2):   0x1015
+0.322120 PTP/library.c(2):   0x1016
+0.322321 PTP/library.c(2):   0x101b
+0.322518 PTP/library.c(2):   0x9001
+0.322713 PTP/library.c(2):   0x9002
+0.322909 PTP/library.c(2):   0x9003
+0.323103 PTP/library.c(2):   0x9006
+0.323299 PTP/library.c(2):   0x9008
+0.323493 PTP/library.c(2):   0x9009
+0.323689 PTP/library.c(2):   0x900a
+0.323883 PTP/library.c(2):   0x900b
+0.324079 PTP/library.c(2):   0x900c
+0.324273 PTP/library.c(2):   0x900d
+0.324583 PTP/library.c(2):   0x900e
+0.324789 PTP/library.c(2):   0x900f
+0.324985 PTP/library.c(2):   0x9010
+0.325181 PTP/library.c(2):   0x9011
+0.325377 PTP/library.c(2):   0x9012
+0.325573 PTP/library.c(2):   0x9013
+0.325767 PTP/library.c(2):   0x9014
+0.325966 PTP/library.c(2):   0x9015
+0.326162 PTP/library.c(2):   0x9018
+0.326357 PTP/library.c(2):   0x9019
+0.326554 PTP/library.c(2):   0x901a
+0.326750 PTP/library.c(2):   0x901b
+0.326945 PTP/library.c(2):   0x901c
+0.327142 PTP/library.c(2):   0x901d
+0.327337 PTP/library.c(2):   0x901e
+0.327533 PTP/library.c(2):   0x901f
+0.327729 PTP/library.c(2):   0x9020
+0.327925 PTP/library.c(2):   0x9021
+0.555111 PTP2/library.c(2): Events Supported:
+0.555118 PTP2/library.c(2):   0x4001
+0.555125 PTP2/library.c(2):   0x4002
+0.555132 PTP2/library.c(2):   0x4003
+0.555138 PTP2/library.c(2):   0x4004
+0.555145 PTP2/library.c(2):   0x4005
+0.555152 PTP2/library.c(2):   0x4006
+0.555159 PTP2/library.c(2):   0x4008
+0.555165 PTP2/library.c(2):   0x400a
+0.555172 PTP2/library.c(2):   0x400c
+0.555179 PTP2/library.c(2):   0x400d
+0.555185 PTP2/library.c(2):   0xc001
+0.555192 PTP2/library.c(2):   0xc005
+0.555199 PTP2/library.c(2):   0xc006
+0.555206 PTP2/library.c(2):   0xc007
+0.555212 PTP2/library.c(2):   0xc008
+0.555219 PTP2/library.c(2):   0xc009
+0.555226 PTP2/library.c(2):   0xc00a
+0.555233 PTP2/library.c(2):   0xc00b
+0.555239 PTP2/library.c(2):   0xc00c
+0.555246 PTP2/library.c(2):   0xc00d
+0.555253 PTP2/library.c(2): Device Properties Supported:
+0.555260 PTP2/library.c(2):   0xd001
+0.555267 PTP2/library.c(2):   0xd002
+0.555273 PTP2/library.c(2):   0xd003
+0.555280 PTP2/library.c(2):   0xd02c
+0.555287 PTP2/library.c(2):   0xd02d
+0.555294 PTP2/library.c(2):   0xd02e
+0.555300 PTP2/library.c(2):   0xd02f
+0.555307 PTP2/library.c(2):   0xd030
+0.555314 PTP2/library.c(2):   0xd031
+0.555320 PTP2/library.c(2):   0xd032
+0.555327 PTP2/library.c(2):   0xd033
+0.555334 PTP2/library.c(2):   0xd034
+0.555341 PTP2/library.c(2):   0xd045
+0.555347 PTP2/library.c(2):   0xd046
+0.555354 PTP2/library.c(2):   0xd047
+0.555361 PTP2/library.c(2):   0xd048
+0.555368 PTP2/library.c(2):   0xd049
+
+0.509050 PTP/library.c(2): Device info:
+0.509067 PTP/library.c(2): Manufacturer: Canon Inc.
+0.509072 PTP/library.c(2):   model: Canon DIGITAL IXUS II
+0.509077 PTP/library.c(2):   device version: 
+0.509082 PTP/library.c(2): Vendor extension description: (null)
+0.509091 PTP/library.c(2): Supported operations:
+0.509096 PTP/library.c(2):   0x1001
+0.509101 PTP/library.c(2):   0x1002
+0.509106 PTP/library.c(2):   0x1003
+0.509110 PTP/library.c(2):   0x1004
+0.509114 PTP/library.c(2):   0x1005
+0.509119 PTP/library.c(2):   0x1006
+0.509142 PTP/library.c(2):   0x1007
+0.509147 PTP/library.c(2):   0x1008
+0.509152 PTP/library.c(2):   0x1009
+0.509156 PTP/library.c(2):   0x100a
+0.509160 PTP/library.c(2):   0x100b
+0.509165 PTP/library.c(2):   0x100c
+0.509169 PTP/library.c(2):   0x100d
+0.509173 PTP/library.c(2):   0x100e
+0.509178 PTP/library.c(2):   0x100f
+0.509182 PTP/library.c(2):   0x1012
+0.509186 PTP/library.c(2):   0x1014
+0.509191 PTP/library.c(2):   0x1015
+0.509195 PTP/library.c(2):   0x1016
+0.509199 PTP/library.c(2):   0x101b
+0.509203 PTP/library.c(2):   0x9001
+0.509208 PTP/library.c(2):   0x9002
+0.509212 PTP/library.c(2):   0x9003
+0.509216 PTP/library.c(2):   0x9006
+0.509221 PTP/library.c(2):   0x9008
+0.509225 PTP/library.c(2):   0x9009
+0.509229 PTP/library.c(2):   0x900a
+0.509234 PTP/library.c(2):   0x900b
+0.509238 PTP/library.c(2):   0x900c
+0.509242 PTP/library.c(2):   0x900d
+0.509247 PTP/library.c(2):   0x900e
+0.509251 PTP/library.c(2):   0x900f
+0.509255 PTP/library.c(2):   0x9010
+0.509259 PTP/library.c(2):   0x9011
+0.509264 PTP/library.c(2):   0x9012
+0.509268 PTP/library.c(2):   0x9013
+0.509272 PTP/library.c(2):   0x9014
+0.509277 PTP/library.c(2):   0x9015
+0.509281 PTP/library.c(2):   0x9018
+0.509285 PTP/library.c(2):   0x9019
+0.509290 PTP/library.c(2):   0x901a
+0.509294 PTP/library.c(2):   0x901b
+0.509298 PTP/library.c(2):   0x901c
+0.509303 PTP/library.c(2):   0x901d
+0.509307 PTP/library.c(2):   0x901e
+0.509311 PTP/library.c(2):   0x901f
+0.509316 PTP/library.c(2):   0x9020
+0.509320 PTP/library.c(2):   0x9021
+
