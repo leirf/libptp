@@ -1,13 +1,8 @@
 
-TODO for 1.0 release:
+TODO:
 
-- Code cleanup (add comments, remove dead code etc.)
-- free() all malloced memory (no memroy leaks)
+- check for free() all malloced memory ( consider custom *alloc() wrappers )
 - Finish README, document ptpcam features
 - check and improve (if necessary) build system
 
-===========================================================================
-
-Unordered TODO list:
-
--- consider the idea of adding lasterror variable to PTPParams
+- add batching support

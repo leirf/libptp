@@ -1,5 +1,5 @@
 dnl AC_NEED_BYTEORDER_H ( HEADER-TO-GENERATE )
-dnl $Id: byteorder.m4,v 1.3 2004-07-16 15:31:20 kil3r Exp $
+dnl $Id: byteorder.m4,v 1.4 2005-03-01 09:36:40 kil3r Exp $
 dnl Copyright 2001-2002 by Dan Fandrich <dan@coneharvesters.com>
 dnl This file may be copied and used freely without restrictions.  No warranty
 dnl is expressed or implied.
@@ -280,7 +280,7 @@ fi
 
 cat >> "$1" << EOF
 /* Define the C99 standard length-specific integer types */
-#include "_stdint.h"
+#include "libptp-stdint.h"
 
 EOF
 

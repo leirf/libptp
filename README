@@ -6,15 +6,15 @@ ptpcam  (c)2001-2004 Mariusz Woloszyn <emsi@ipartners.pl>
 =====================
 
 You may find new versions of this software at:
-http://sf.net/projects/libptp
+http://libptp.sf.net/
 
-This folder contains following code:
+The ./src folder contains following code:
 ptp.c		- the main libptp2 code
 ptp.h		- libptp2 header files
 ptp-pack.c	- this file is included into ptp.c (internal code)
-ptpcam.c	- the software to manipulate PTP cameras
-		  (currently get/set properties); it does things that
-		  you can't do with gphoto2
+ptpcam.h	- ptpcam header file
+ptpcam.c	- the software to manipulate PTP cameras;
+		  it does things that you can't do with gphoto2
 
 The libptp2 library is under development yet, but is considered to be
 functional and quite stable.
@@ -30,6 +30,8 @@ The libptp2 library itself is transport layer independent and does not require
 libusb, however no other transport layer has been tested due to lack
 of PTP non-USB devices.
 You can obtain libusb at http://libusb.sf.net/
+BE AWARE THAT libusb-0.1.10 contained bugs that might affect your camera!
+Use newer version or libusb-0.1.8 instead.
 If you want to build this library (for test purposes) on a box without
 libusb pass --disable-ptpcam option to configure script.
 
@@ -39,94 +41,44 @@ libusb pass --disable-ptpcam option to configure script.
 ==================
 
 libptp2 is a library used to communicate with PTP devices like still
-imaging cameras or MP3 players (KODAK mc3).
-At the current stage if you want to download your pictures from your PTP
-camera all you need is libgphoto2 (which contains libptp2 code) and gphoto2
-frontend (visit http://www.gphoto.org). This package contains only the
-developers version of libptp2 and the ptpcam program used for tweaking
-PTP camera properties.
+imaging cameras.
+At the current stage you may use ptpcam tool boundled with libptp2 to perform
+some basic operations like downloading photos or setting camera properties.
+For other operations please use libgphoto2 (which contains libptp2 code)
+and gphoto2 frontend (visit http://www.gphoto.org).
 
 
 ===================
 *Supported Cameras*
 ===================
 
-NOTE that if your camera is not on the list it DOES NOT mean that it is not
-supported! Most of USB cameras designed after 2002 are PTP or USB Mass
-Storage. In both cases the camera is supported under Linux!
+The list of PTP cameras is constantly growing. Most (if not all) USB still
+cameras designed after 2002 are PTP compliant. Below is the list of vendors
+implementing PTP in their cameras:
 
-Below the list of cameras explicitly supported by gphoto2 ptp driver:
-(THIS TABLE IS OUTDATED!!! Maintaining the constantly growing list of
-supported cameras is harder than developing the driver ;)
+* Kodak
+* HP
+* Nikon
+* Canon
+* Panasonic
+* Olympus
+* Konika
+* Minolta
+* Fuji
+* Ricoh
+* Sony
 
-=============================================+
-Model			|Vendor ID|Product ID|
-========================|=========|==========|
-Kodak DC240 (PTP)	| 0x040a  |  0x0121  |
-Kodak DC4800		| 0x040a  |  0x0160  |
-Kodak DX3215		| 0x040a  |  0x0525  |
-Kodak DX3500		| 0x040a  |  0x0500  |
-Kodak DX3600		| 0x040a  |  0x0510  |
-Kodak DX3700		| 0x040a  |  0x0530  |
-Kodak DX3900		| 0x040a  |  0x0170  |
-Kodak DX4330		| 0x040a  |  0x0555  |
-Kodak DX4900		| 0x040a  |  0x0550  |
-Kodak MC3		| 0x040a  |  0x0400  |
-Kodak LS420		| 0x040a  |  0x0540  |
-Kodak LS443		| 0x040a  |  0x0568  |
-Kodak CX4200		| 0x040a  |  0x0560  |
-Kodak CX4210		| 0x040a  |  0x0560  |
-Kodak CX4230		| 0x040a  |  0x0535  |
-Kodak CX4300		| 0x040a  |  0x0566  |
-------------------------+---------+----------+
-HP PhotoSmart 120	| 0x03f0  |  0x6502  |
-HP PhotoSmart 318	| 0x03f0  |  0x6302  |
-HP PhotoSmart 320	| 0x03f0  |  0x6602  |
-HP PhotoSmart 612	| 0x03f0  |  0x6302  |
-HP PhotoSmart 620	| 0x03f0  |  0x6802  |
-HP PhotoSmart 715	| 0x03f0  |  0x6402  |
-HP PhotoSmart 720	| 0x03f0  |  0x6702  |
-HP PhotoSmart 735	| 0x03f0  |  0x6a02  |
-HP PhotoSmart 812	| 0x03f0  |  0x4202  |
-HP PhotoSmart 850	| 0x03f0  |  0x4302  |
-------------------------+---------+----------+
-Sony DSC-CD300		| 0x054c  |  0x004e  |
-Sony DSC-F505		| 0x054c  |  0x004e  |
-Sony DSC-F505V		| 0x054c  |  0x004e  |
-Sony DSC-F707		| 0x054c  |  0x004e  |
-Sony DSC-F707V		| 0x054c  |  0x004e  |
-Sony DSC-P5		| 0x054c  |  0x004e  |
-Sony DSC-P30		| 0x054c  |  0x004e  |
-Sony DSC-P50		| 0x054c  |  0x004e  |
-Sony DSC-P71		| 0x054c  |  0x004e  |
-Sony DSC-S75		| 0x054c  |  0x004e  |
-Sony DSC-S85		| 0x054c  |  0x004e  |
-Sony MVC-CD300		| 0x054c  |  0x004e  |
-------------------------+---------+----------+
-Nikon DSC D100		| 0x04b0  |  0x0402  |
-Nikon Coolpix 2000	| 0x04b0  |  0x0302  |
-Nikon Coolpix SQ	| 0x04b0  |  0x0202  |
-Nikon Coolpix 2500	| 0x04b0  |  0x0109  |
-Nikon Coolpix 4500	| 0x04b0  |  0x010b  |
-Nikon Coolpix 5700	| 0x04b0  |  0x010d  |
-Nikon Coolpix 4300	| 0x04b0  |  0x010f  |
-Nikon Coolpix 885	| 0x04b0  |  0x0112  |
-Nikon Coolpix 5400	| 0x04b0  |  0x0119  |
-------------------------+---------+----------+
-Canon PowerShot S45	| 0x04a9  |  0x306d  |
-Canon PowerShot G3	| 0x04a9  |  0x306f  |
-Canon PowerShot S230	| 0x04a9  |  0x3071  |
-Canon Digital IXUS v3	| 0x04a9  |  0x3071  |
-Canon PowerShot A70	| 0x04a9  |  0x3073  |
-==============================================
-
-Note that for some HP, Nikon, Canon and Sony cameras you have to switch
-them to PTP mode as in most cases the camera is dual mode:
+Note that for some HP, Nikon, Canon, Sony and possibly other cameras
+you have to switch them to PTP mode as in most cases the camera is dual mode:
 PTP and USB Mass Storage or PTP and native.
-For some cameras it even changes the Product ID number, so don't panic if
-it does not match the one listed above, just switch the mode.
+For some cameras it even changes the Product ID number, so don't panic 
+just switch the mode.
 Don't ask me how to do it. Refer to camera documentation.
 
+Please note that if your camera is supporting PTP it does NOT mean that
+it is capable of performing all PTP operations (like triggering capture,
+uploading files or tweaking properties). Sony cameras are good example of
+poor PTP implementation where the only thing you can do is downloading files.
 
 =============
 *Quick Start*
@@ -363,6 +315,8 @@ DevicePropChanged event! We may catch that and report to user.
 Sometimes it might happen that the device claims to support given property
 but does not respond to --show-property request. In most cases it's because of
 improper PTP implementation on the camera side.
+Sometimes the list of supported properties might vary while changing
+camera mode.
 Moreover, given property may not have any meaning in a certain camera state.
 For example setting or getting 'Focus Distance' property may not be allowed
 in automated camera mode! In such case try to switch the camera to manual
@@ -392,7 +346,7 @@ reset the camera.
 =========================
 
 
-Below, I am providing a short list of properties and their meaning values
+Below I am providing a short list of properties and their meaning values
 according to PTP specification.
 
 0x5001 : Battery Level

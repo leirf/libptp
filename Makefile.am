@@ -1,17 +1,3 @@
-EXTRA_DIST = ptp-pack.c
 
-lib_LTLIBRARIES = libptp2.la
+SUBDIRS = src
 
-libptp2_la_SOURCES = ptp.c ptp.h
-libptp2_la_LDFLAGS = -version-info @LIBPTP2_VERSION_INFO@
-
-libptp2includedir = $(includedir)/libptp2
-libptp2include_HEADERS = ptp.h libptp-endian.h _stdint.h
-
-DISTCLEANFILES = _stdint.h libptp-endian.h
-
-if PTPCAM
-bin_PROGRAMS = ptpcam
-ptpcam_SOURCES = ptpcam.c
-ptpcam_LDADD = -lusb -lptp2
-endif
