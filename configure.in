@@ -1,6 +1,6 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT([libptp2],[1.0pre5],[emsi@ipartners.pl])
-AM_INIT_AUTOMAKE(libptp2, 1.0pre5)
+AC_INIT([libptp2],[1.0pre7],[emsi@ipartners.pl])
+AM_INIT_AUTOMAKE(libptp2, 1.0pre7)
 AC_PREREQ(2.53)
 AM_CONFIG_HEADER([config.h])
 AC_PROG_LIBTOOL

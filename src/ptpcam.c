@@ -576,7 +576,7 @@ get_property_description(PTPParams* params, uint16_t dpc)
 			if (ptp_device_properties_CANON[i].dpc==dpc)
 				return (ptp_device_properties_CANON[i].txt);
 		break;
-	} else
+	}
 	for (i=0; ptp_device_properties[i].txt!=NULL; i++)
 		if (ptp_device_properties[i].dpc==dpc)
 			return (ptp_device_properties[i].txt);

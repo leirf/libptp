@@ -1,3 +1,11 @@
+2003-12-17 Mariusz Woloszyn
+	* ptp.c, ptp.h, ptp-pack.c: changed comments from // to /* */
+	* ptpcam.c: fixed a bug that caused ptoprties names to not be displayed
+	* config.h.in: updated for new autoconf
+	* configure.in: changed version numbr to 1.0pre7
+2003-12-17 Mariusz Woloszyn
+	* ptp.c, ptp.h: fixed ptp_getdevicepropvalue(), thanks to: 
+	  Nikolai Kopanygin
 2003-07-18 Mariusz Woloszyn
 	* ptp.h: changed #include <libptp-endian.h> to
 	  #include "libptp-endian.h"
@@ -56,7 +64,7 @@
 2003-05-12 Mariusz Woloszyn
 	* ptp.c: fflush(stderr) on error and debug; 
 	  added datatype argument for ptp_getdevicepropvalue();
-	  added ptp_setdevicepropvalue();A
+	  added ptp_setdevicepropvalue();
 	* ptp-pack.c: added ptp_unpack_DPV() and ptp_pack_DPV();
 	  fixed missing strings while unpacking enumerated DPD;
 	* ptp.h: fixed ptp_getdevicepropvalue() prototype and added
