@@ -1,6 +1,6 @@
 /* ptpcam.c
  *
- * Copyright (C) 2001-2003 Mariusz Woloszyn <emsi@ipartners.pl>
+ * Copyright (C) 2001-2004 Mariusz Woloszyn <emsi@ipartners.pl>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,6 +21,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/mman.h>
 #include <usb.h>
 
 #ifdef ENABLE_NLS
@@ -124,10 +129,14 @@
 
 
 /* requested actions */
-#define ACT_DEVICE_RESET	01
-#define ACT_LIST_DEVICES	02
-#define ACT_LIST_PROPERTIES	03
-#define ACT_GETSET_PROPERTY	04
+#define ACT_DEVICE_RESET	0x1
+#define ACT_LIST_DEVICES	0x2
+#define ACT_LIST_PROPERTIES	0x3
+#define ACT_LIST_OPERATIONS	0x4
+#define ACT_GETSET_PROPERTY	0x5
+#define ACT_SHOW_INFO		0x6
+#define ACT_LIST_FILES		0x7
+#define ACT_GET_FILE		0x8
 
 
 			
@@ -171,6 +180,8 @@ help()
 	"  -D, --dev=DEV-NUMBER         USB assigned device number\n"
 	"  -r, --reset                  Reset the device\n"
 	"  -l, --list-devices           List all PTP devices\n"
+	"  -i, --info                   Show device info\n"
+	"  -o, --list-operations        List supported operations\n"
 	"  -p, --list-properties        List all PTP device properties\n"
 	"                               "
 				"(e.g. focus mode, focus distance, etc.)\n"
@@ -179,6 +190,8 @@ help()
 	"                               if used in conjunction with --val)\n"
 	"  --set-property=NUMBER        Set property value (--val required)\n"
 	"  --val=VALUE                  Property value\n"
+	"  -L, --list-files             List all files\n"
+	"  -g, --get-file=HANDLE        Get file by given handler\n"
 	"  -f, --force                  Talk to non PTP devices\n"
 	"  -v, --verbose                Be verbosive (print more debug)\n"
 	"\n");
@@ -219,6 +232,19 @@ ptp_write_func (unsigned char *bytes, unsigned int size, void *data)
 	}
 }
 
+static short
+ptp_check_int (unsigned char *bytes, unsigned int size, void *data)
+{
+	int result;
+	PTP_USB *ptp_usb=(PTP_USB *)data;
+
+	result=usb_bulk_read(ptp_usb->handle, ptp_usb->intep,bytes,size,100);
+	if (result==0)
+		result = usb_bulk_read(ptp_usb->handle, ptp_usb->intep, bytes, size, 100);
+	return (result);
+}
+
+
 void
 debug (void *data, const char *format, va_list args);
 void
@@ -235,88 +261,13 @@ error (void *data, const char *format, va_list args);
 void
 error (void *data, const char *format, va_list args)
 {
-//	if (!verbose) return;
+/*	if (!verbose) return; */
 	vfprintf (stderr, format, args);
 	fprintf (stderr,"\n");
 	fflush(stderr);
 }
 
-#if 0
-static short
-ptp_check_int (unsigned char *bytes, unsigned int size, void *data)
-{
-	int result;
-	PTP_USB *ptp_usb=(PTP_USB *)data;
 
-	result = usb_bulk_read(ptp_usb->handle, ptp_usb->intep, bytes, size, 3000);
-	if (result==0) result = usb_bulk_read(ptp_usb->handle, ptp_usb->intep, bytes, size, 3000);
-	return (result);
-}
-
-#endif
-
-#if 0
-void talk (struct usb_device *dev, int inep, int outep, int eventep) {
-char buf[65535];
-int ret=-1;
-int i;
-usb_dev_handle *device_handle;
-PTP_USB ptp_usb;
-PTPParams* params;
-
-	params=malloc(sizeof(PTPParams));
-
-	params->write_func=ptp_write_func;
-	params->read_func=ptp_read_func;
-	params->error_func=NULL;
-	params->debug_func=NULL;
-	params->sendreq_func=ptp_usb_sendreq;
-	params->senddata_func=ptp_usb_senddata;
-	params->getresp_func=ptp_usb_getresp;
-	params->getdata_func=ptp_usb_getdata;
-	params->data=&ptp_usb;
-	params->transaction_id=1;
-	params->byteorder = PTP_DL_LE;
-	ptp_usb.inep=inep;
-	ptp_usb.outep=outep;
-	ptp_usb.intep=eventep;
-
-	if ((device_handle=usb_open(dev))){
-	if (!device_handle) {
-		perror("usb_open");
-		exit;
-	}
-	ptp_usb.handle=device_handle;
-	
-	ret=ptp_opensession (params, 1);
-	if (ret!=PTP_RC_OK) return;
-
-	sleep(3);
-	printf("Checking event ep\n");
-
-//	ret=usb_bulk_read(device_handle, eventep, buf, 16384, 5000);
-
-	ret=ptp_check_int (buf, 16384, params->data);
-	if (ret<=0) {
-		perror ("bulk_read()");
-	} else {
-	printf ("READ %i bytes\n",ret);
-	for (i=0;i<=ret;i++) {
-		printf ("%x ",buf[i]);
-	}
-	printf("\n");
-	}
-
-
-	ptp_closesession (params);
-	exit;
-	} else {
-		printf("DUPA\n");
-		exit;
-	}
-}
-
-#endif
 
 void
 init_ptp_usb (PTPParams* params, PTP_USB* ptp_usb, struct usb_device* dev)
@@ -325,6 +276,8 @@ init_ptp_usb (PTPParams* params, PTP_USB* ptp_usb, struct usb_device* dev)
 
 	params->write_func=ptp_write_func;
 	params->read_func=ptp_read_func;
+	params->check_int_func=ptp_check_int;
+	params->check_int_fast_func=ptp_check_int;
 	params->error_func=error;
 	params->debug_func=debug;
 	params->sendreq_func=ptp_usb_sendreq;
@@ -449,32 +402,16 @@ list_devices(short force)
 			struct usb_endpoint_descriptor *ep;
 			PTPParams params;
 			PTP_USB ptp_usb;
-			//int inep=0, outep=0, intep=0;
 			PTPDeviceInfo deviceinfo;
 
 			if (!found){
-				printf("Listing devices...\n");
+				printf("\nListing devices...\n");
 				printf("bus/dev\tvendorID/prodID\tdevice model\n");
 				found=1;
 			}
 			ep = dev->config->interface->altsetting->endpoint;
 			n=dev->config->interface->altsetting->bNumEndpoints;
-			/* find endpoints */
-/*			for (i=0;i<n;i++) {
-				if (ep[i].bmAttributes==2) {
-					if ((ep[i].bEndpointAddress&0x80)==0x80)
-						inep=ep[i].bEndpointAddress;
-					if ((ep[i].bEndpointAddress&0x80)==0)
-						outep=ep[i].bEndpointAddress;
-				} else if (ep[i].bmAttributes==3) {
-					if ((ep[i].bEndpointAddress&0x80)==0x80)
-						intep=ep[i].bEndpointAddress;
-				}
-			}
-			ptp_usb.inep=inep;
-			ptp_usb.outep=outep;
-			ptp_usb.intep=intep;
-*/
+
 			find_endpoints(dev,&ptp_usb.inep,&ptp_usb.outep,
 				&ptp_usb.intep);
 			init_ptp_usb(&params, &ptp_usb, dev);
@@ -499,266 +436,17 @@ list_devices(short force)
 	printf("\n");
 }
 
-const char*
-get_property_description(PTPParams* params, uint16_t dpc);
-const char*
-get_property_description(PTPParams* params, uint16_t dpc)
-{
-	int i;
-	// Device Property descriptions
-	struct {
-		uint16_t dpc;
-		const char *txt;
-	} ptp_device_properties[] = {
-		{PTP_DPC_Undefined,		N_("PTP Undefined Property")},
-		{PTP_DPC_BatteryLevel,		N_("Battery Level")},
-		{PTP_DPC_FunctionalMode,	N_("Functional Mode")},
-		{PTP_DPC_ImageSize,		N_("Image Size")},
-		{PTP_DPC_CompressionSetting,	N_("Compression Setting")},
-		{PTP_DPC_WhiteBalance,		N_("White Balance")},
-		{PTP_DPC_RGBGain,		N_("RGB Gain")},
-		{PTP_DPC_FNumber,		N_("F-Number")},
-		{PTP_DPC_FocalLength,		N_("Focal Length")},
-		{PTP_DPC_FocusDistance,		N_("Focus Distance")},
-		{PTP_DPC_FocusMode,		N_("Focus Mode")},
-		{PTP_DPC_ExposureMeteringMode,	N_("Exposure Metering Mode")},
-		{PTP_DPC_FlashMode,		N_("Flash Mode")},
-		{PTP_DPC_ExposureTime,		N_("Exposure Time")},
-		{PTP_DPC_ExposureProgramMode,	N_("Exposure Program Mode")},
-		{PTP_DPC_ExposureIndex,
-					N_("Exposure Index (film speed ISO)")},
-		{PTP_DPC_ExposureBiasCompensation,
-					N_("Exposure Bias Compensation")},
-		{PTP_DPC_DateTime,		N_("Date Time")},
-		{PTP_DPC_CaptureDelay,		N_("Pre-Capture Delay")},
-		{PTP_DPC_StillCaptureMode,	N_("Still Capture Mode")},
-		{PTP_DPC_Contrast,		N_("Contrast")},
-		{PTP_DPC_Sharpness,		N_("Sharpness")},
-		{PTP_DPC_DigitalZoom,		N_("Digital Zoom")},
-		{PTP_DPC_EffectMode,		N_("Effect Mode")},
-		{PTP_DPC_BurstNumber,		N_("Burst Number")},
-		{PTP_DPC_BurstInterval,		N_("Burst Interval")},
-		{PTP_DPC_TimelapseNumber,	N_("Timelapse Number")},
-		{PTP_DPC_TimelapseInterval,	N_("Timelapse Interval")},
-		{PTP_DPC_FocusMeteringMode,	N_("Focus Metering Mode")},
-		{PTP_DPC_UploadURL,		N_("Upload URL")},
-		{PTP_DPC_Artist,		N_("Artist")},
-		{PTP_DPC_CopyrightInfo,		N_("Copyright Info")},
-		{0,NULL}
-	};
-	struct {
-		uint16_t dpc;
-		const char *txt;
-	} ptp_device_properties_EK[] = {
-		{PTP_DPC_EK_ColorTemperature,	N_("EK: Color Temperature")},
-		{PTP_DPC_EK_DateTimeStampFormat,
-					N_("EK: Date Time Stamp Format")},
-		{PTP_DPC_EK_BeepMode,		N_("EK: Beep Mode")},
-		{PTP_DPC_EK_VideoOut,		N_("EK: Video Out")},
-		{PTP_DPC_EK_PowerSaving,	N_("EK: Power Saving")},
-		{PTP_DPC_EK_UI_Language,	N_("EK: UI Language")},
-		{0,NULL}
-	};
-
-	struct {
-		uint16_t dpc;
-		const char *txt;
-	} ptp_device_properties_CANON[] = {
-		{PTP_DPC_CANON_BeepMode,	N_("CANON: Beep Mode")},
-		{PTP_DPC_CANON_UnixTime,	N_("CANON: Time measured in"
-						" secondssince 01-01-1970")},
-		{PTP_DPC_CANON_FlashMemory,
-					N_("CANON: Flash Card Capacity")},
-		{PTP_DPC_CANON_CameraModel,	N_("CANON: Camera Model")},
-		{0,NULL}
-	};
-/* Nikon Codes added by Corey Manders and Mehreen Chaudary */
-	struct {
-		uint16_t dpc;
-		const char *txt;
-	} ptp_device_properties_NIKON[] = {
-		{PTP_DPC_NIKON_ShootingBank,	N_("NIKON: Shooting Bank")},
-		{PTP_DPC_NIKON_ShootingBankNameA,
-					N_("NIKON: Shooting Bank Name A")},
-		{PTP_DPC_NIKON_ShootingBankNameB,
-					N_("NIKON: Shooting Bank Name B")},
-		{PTP_DPC_NIKON_ShootingBankNameC,
-					N_("NIKON: Shooting Bank Name C")},
-		{PTP_DPC_NIKON_ShootingBankNameD,
-					N_("NIKON: Shooting Bank Name D")},
-		{PTP_DPC_NIKON_RawCompression,	N_("NIKON: Raw Compression")},
-		{PTP_DPC_NIKON_WhiteBalanceAutoBias,
-					N_("NIKON: White Balance Auto Bias")},
-		{PTP_DPC_NIKON_WhiteBalanceTungstenBias,
-				N_("NIKON: White Balance Tungsten Bias")},
-		{PTP_DPC_NIKON_WhiteBalanceFlourescentBias,
-				N_("NIKON: White Balance Flourescent Bias")},
-		{PTP_DPC_NIKON_WhiteBalanceDaylightBias,
-				N_("NIKON: White Balance Daylight Bias")},
-		{PTP_DPC_NIKON_WhiteBalanceFlashBias,
-				N_("NIKON: White Balance Flash Bias")},
-		{PTP_DPC_NIKON_WhiteBalanceCloudyBias,
-				N_("NIKON: White Balance Cloudy Bias")},
-		{PTP_DPC_NIKON_WhiteBalanceShadeBias,
-				N_("NIKON: White Balance Shade Bias")},
-		{PTP_DPC_NIKON_WhiteBalanceColourTemperature,
-				N_("NIKON: White Balance Colour Temperature")},
-		{PTP_DPC_NIKON_ImageSharpening,
-				N_("NIKON: Image Sharpening")},
-		{PTP_DPC_NIKON_ToneCompensation,
-				N_("NIKON: Tone Compensation")},
-		{PTP_DPC_NIKON_ColourMode,	N_("NIKON: Colour Mode")},
-		{PTP_DPC_NIKON_HueAdjustment,	N_("NIKON: Hue Adjustment")},
-		{PTP_DPC_NIKON_NonCPULensDataFocalLength,
-				N_("NIKON: Non CPU Lens Data Focal Length")},
-		{PTP_DPC_NIKON_NonCPULensDataMaximumAperature,
-			N_("NIKON: Non CPU Lens Data Maximum Aperature")},
-		{PTP_DPC_NIKON_CSMMenuBankSelect,
-				N_("NIKON: CSM Menu Bank Select")},
-		{PTP_DPC_NIKON_MenuBankNameA,	N_("NIKON: Menu Bank Name A")},
-		{PTP_DPC_NIKON_MenuBankNameB,	N_("NIKON: Menu Bank Name B")},	
-		{PTP_DPC_NIKON_MenuBankNameC,	N_("NIKON: Menu Bank Name C")},
-		{PTP_DPC_NIKON_MenuBankNameD,	N_("NIKON: Menu Bank Name D")},
-		{PTP_DPC_NIKON_A1AFCModePriority,
-				N_("NIKON: (A1) AFC Mode Priority")},
-		{PTP_DPC_NIKON_A2AFSModePriority,
-				N_("NIKON: (A2) AFS Mode Priority")},
-		{PTP_DPC_NIKON_A3GroupDynamicAF,
-				N_("NIKON: (A3) Group Dynamic AF")},
-		{PTP_DPC_NIKON_A4AFActivation,		
-				N_("NIKON: (A4) AF Activation")},	
-		{PTP_DPC_NIKON_A5FocusAreaIllumManualFocus,
-			N_("NIKON: (A5) Focus Area Illum Manual Focus")},
-		{PTP_DPC_NIKON_FocusAreaIllumContinuous,
-				N_("NIKON: Focus Area Illum Continuous")},
-		{PTP_DPC_NIKON_FocusAreaIllumWhenSelected,
-				N_("NIKON: Focus Area Illum When Selected")},
-		{PTP_DPC_NIKON_A6FocusArea,	N_("NIKON: (A6) Focus Area")},
-		{PTP_DPC_NIKON_A7VerticalAFON,
-				N_("NIKON: (A7) Vertical AF ON")},
-		{PTP_DPC_NIKON_B1ISOAuto,	N_("NIKON: (B1) ISO Auto")},
-		{PTP_DPC_NIKON_B2ISOStep,	N_("NIKON: (B2)	ISO Step")},
-		{PTP_DPC_NIKON_B3EVStep,	N_("NIKON: (B3) EV Step")},
-		{PTP_DPC_NIKON_B4ExposureCompEv,
-				N_("NIKON: (B4) Exposure Comp Ev")},
-		{PTP_DPC_NIKON_B5ExposureComp,
-				N_("NIKON: (B5) Exposure Comp")},
-		{PTP_DPC_NIKON_B6CenterWeightArea,
-				N_("NIKON: (B6) Center Weight Area")},
-		{PTP_DPC_NIKON_C1AELock,	N_("NIKON: (C1) AE Lock")},
-		{PTP_DPC_NIKON_C2AELAFL,	N_("NIKON: (C2) AE_L/AF_L")},
-		{PTP_DPC_NIKON_C3AutoMeterOff,
-				N_("NIKON: (C3) Auto Meter Off")},
-		{PTP_DPC_NIKON_C4SelfTimer,	N_("NIKON: (C4) Self Timer")},	
-		{PTP_DPC_NIKON_C5MonitorOff,	N_("NIKON: (C5) Monitor Off")},
-		{PTP_DPC_NIKON_D1ShootingSpeed,
-				N_("NIKON: (D1) Shooting Speed")},
-		{PTP_DPC_NIKON_D2MaximumShots,
-				N_("NIKON: (D2) Maximum Shots")},
-		{PTP_DPC_NIKON_D3ExpDelayMode,	N_("NIKON: (D3) ExpDelayMode")},	
-		{PTP_DPC_NIKON_D4LongExposureNoiseReduction,
-			N_("NIKON: (D4) Long Exposure Noise Reduction")},
-		{PTP_DPC_NIKON_D5FileNumberSequence,
-				N_("NIKON: (D5) File Number Sequence")},
-		{PTP_DPC_NIKON_D6ControlPanelFinderRearControl,
-			N_("NIKON: (D6) Control Panel Finder Rear Control")},
-		{PTP_DPC_NIKON_ControlPanelFinderViewfinder,
-				N_("NIKON: Control Panel Finder Viewfinder")},
-		{PTP_DPC_NIKON_D7Illumination,	N_("NIKON: (D7) Illumination")},
-		{PTP_DPC_NIKON_E1FlashSyncSpeed,
-				N_("NIKON: (E1) Flash Sync Speed")},
-		{PTP_DPC_NIKON_E2FlashShutterSpeed,
-				N_("NIKON: (E2) Flash Shutter Speed")},
-		{PTP_DPC_NIKON_E3AAFlashMode,
-				N_("NIKON: (E3) AA Flash Mode")},
-		{PTP_DPC_NIKON_E4ModelingFlash,	
-				N_("NIKON: (E4) Modeling Flash")},
-		{PTP_DPC_NIKON_E5AutoBracketySet,
-				N_("NIKON: (E5) Auto Brackety Set")},
-		{PTP_DPC_NIKON_E6ManualModeBracketing,
-				N_("NIKON: (E6) Manual Mode Bracketing")},
-		{PTP_DPC_NIKON_E7AutoBracketOrder,
-				N_("NIKON: (E7) Auto Bracket Order")},
-		{PTP_DPC_NIKON_E8AutoBracketSelection,
-				N_("NIKON: (E8) Auto Bracket Selection")},
-		{PTP_DPC_NIKON_F1CenterButtonShootingMode,
-				N_("NIKON: (F1) Center Button Shooting Mode")},
-		{PTP_DPC_NIKON_CenterButtonPlaybackMode,
-				N_("NIKON: Center Button Playback Mode")},
-		{PTP_DPC_NIKON_F2Multiselector,
-				N_("NIKON: (F2) Multiselector")},
-		{PTP_DPC_NIKON_F3PhotoInfoPlayback,
-				N_("NIKON: (F3) PhotoInfoPlayback")},	
-		{PTP_DPC_NIKON_F4AssignFuncButton,
-				N_("NIKON: (F4) Assign Function Button")},
-		{PTP_DPC_NIKON_F5CustomizeCommDials,
-				N_("NIKON: (F5) Customize Comm Dials")},
-		{PTP_DPC_NIKON_ChangeMainSub,	N_("NIKON: Change Main Sub")},
-		{PTP_DPC_NIKON_AperatureSetting,
-				N_("NIKON: Aperature Setting")},
-		{PTP_DPC_NIKON_MenusAndPlayback,
-				N_("NIKON: Menus and Playback")},
-		{PTP_DPC_NIKON_F6ButtonsAndDials,
-				N_("NIKON: (F6) Buttons and Dials")},
-		{PTP_DPC_NIKON_F7NoCFCard,	N_("NIKON: (F7) No CF Card")},
-		{PTP_DPC_NIKON_AutoImageRotation,
-				N_("NIKON: Auto Image Rotation")},
-		{PTP_DPC_NIKON_ExposureBracketingOnOff,
-				N_("NIKON: Exposure Bracketing On Off")},
-		{PTP_DPC_NIKON_ExposureBracketingIntervalDist,
-			N_("NIKON: Exposure Bracketing Interval Distance")},
-		{PTP_DPC_NIKON_ExposureBracketingNumBracketPlace,
-			N_("NIKON: Exposure Bracketing Number Bracket Place")},
-		{PTP_DPC_NIKON_AutofocusLCDTopMode2,
-				N_("NIKON: Autofocus LCD Top Mode 2")},
-		{PTP_DPC_NIKON_AutofocusLCDTopMode3AndMode4,
-			N_("NIKON: Autofocus LCD Top Mode 3 and Mode 4")},
-		{PTP_DPC_NIKON_LightMeter,	N_("NIKON: Light Meter")},
-		{PTP_DPC_NIKON_ExposureAperatureLock(Read Only),
-			N_("NIKON: Exposure Aperature Lock (Read Only)")},
-		{PTP_DPC_NIKON_MaximumShots,	N_("NIKON: Maxium Shots")},	
-		{0,NULL}
-	};
-
-	if (dpc|PTP_DPC_EXTENSION_MASK==PTP_DPC_EXTENSION)
-	switch (params->deviceinfo.VendorExtensionID) {
-		case PTP_VENDOR_EASTMAN_KODAK:
-			for (i=0; ptp_device_properties_EK[i].txt!=NULL; i++)
-				if (ptp_device_properties_EK[i].dpc==dpc)
-					return (ptp_device_properties_EK[i].txt);
-			break;
-
-		case PTP_VENDOR_CANON:
-			for (i=0; ptp_device_properties_CANON[i].txt!=NULL; i++)
-				if (ptp_device_properties_CANON[i].dpc==dpc)
-					return (ptp_device_properties_CANON[i].txt);
-			break;
-		case PTP_VENDOR_NIKON:
-			for (i=0; ptp_device_properties_NIKON[i].txt!=NULL; i++)
-				if (ptp_device_properties_NIKON[i].dpc==dpc)
-					return (ptp_device_properties_NIKON[i].txt);
-			break;
-	
-
-		}
-	for (i=0; ptp_device_properties[i].txt!=NULL; i++)
-		if (ptp_device_properties[i].dpc==dpc)
-			return (ptp_device_properties[i].txt);
-
-	return NULL;
-}
-
-
 void
-list_properties (int busn, int devn, short force)
+show_info (int busn, int devn, short force)
 {
 	PTPParams params;
 	PTP_USB ptp_usb;
 	struct usb_device *dev;
-	const char* propdesc;
 	int i;
+	const char* name;
 
-	printf("Listing properties...\n");
+	printf("\nCamera information\n");
+	printf("==================\n");
 #ifdef DEBUG
 	printf("dev %i\tbus %i\n",devn,busn);
 #endif
@@ -775,18 +463,207 @@ list_properties (int busn, int devn, short force)
 		"Could not open session!\n");
 	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
 		"Could not get device info\n");
-	printf("Querying: %s\n",params.deviceinfo.Model);
+	printf("Model: %s\n",params.deviceinfo.Model);
+	printf("  manufacturer: %s\n",params.deviceinfo.Manufacturer);
+	printf("  serial number: '%s'\n",params.deviceinfo.SerialNumber);
+	printf("  device version: %s\n",params.deviceinfo.DeviceVersion);
+	printf("  extension ID: 0x%08x\n",
+					params.deviceinfo.VendorExtensionID);
+	printf("  extension description: %s\n",
+					params.deviceinfo.VendorExtensionDesc);
+	printf("  extension version: 0x%04x\n",
+				params.deviceinfo.VendorExtensionVersion);
+	printf("\n");
+	CR(ptp_closesession(&params), "Could not close session!\n");
+	close_usb(&ptp_usb, dev);
+}
+
+void
+list_files (int busn, int devn, short force)
+{
+	PTPParams params;
+	PTP_USB ptp_usb;
+	struct usb_device *dev;
+	int i;
+	PTPObjectInfo oi;
+
+	printf("\nListing files...\n");
+#ifdef DEBUG
+	printf("dev %i\tbus %i\n",devn,busn);
+#endif
+	dev=find_device(busn,devn,force);
+	if (dev==NULL) {
+		fprintf(stderr,"could not find any device matching given "
+		"bus/dev numbers\n");
+		exit(-1);
+	}
+	find_endpoints(dev,&ptp_usb.inep,&ptp_usb.outep,&ptp_usb.intep);
+
+	init_ptp_usb(&params, &ptp_usb, dev);
+	CR(ptp_opensession (&params,1),
+		"Could not open session!\n");
+	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
+		"Could not get device info\n");
+	printf("Camera: %s\n",params.deviceinfo.Model);
+	CR(ptp_getobjecthandles (&params,0xffffffff, 0x000000, 0x000000,
+		&params.handles),"Could not get object handles\n");
+	printf("Handler:        size: \tname:\n");
+	for (i = 0; i < params.handles.n; i++) {
+		CR(ptp_getobjectinfo(&params,params.handles.Handler[i],
+			&oi),"Could not get object info\n");
+		if (oi.ObjectFormat == PTP_OFC_Association)
+			continue;
+		printf("0x%08x: % 9i\t%s\n",params.handles.Handler[i],
+			oi.ObjectCompressedSize, oi.Filename);
+	}
+	printf("\n");
+	CR(ptp_closesession(&params), "Could not close session!\n");
+	close_usb(&ptp_usb, dev);
+}
+
+void
+get_file (int busn, int devn, short force, uint32_t handle, char* filename)
+{
+	PTPParams params;
+	PTP_USB ptp_usb;
+	struct usb_device *dev;
+	int i;
+	int file;
+	PTPObjectInfo oi;
+	char *image;
+	int ret;
+
+	printf("\nDownloading file...\n");
+#ifdef DEBUG
+	printf("dev %i\tbus %i\n",devn,busn);
+#endif
+	dev=find_device(busn,devn,force);
+	if (dev==NULL) {
+		fprintf(stderr,"could not find any device matching given "
+		"bus/dev numbers\n");
+		exit(-1);
+	}
+	find_endpoints(dev,&ptp_usb.inep,&ptp_usb.outep,&ptp_usb.intep);
+
+	init_ptp_usb(&params, &ptp_usb, dev);
+	CR(ptp_opensession (&params,1),
+		"Could not open session!\n");
+	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
+		"Could not get device info\n");
+	printf("Camera: %s\n",params.deviceinfo.Model);
+
+	if (verbose)
+		printf ("Handle: 0x%08x\n",handle);
+	CR(ptp_getobjectinfo(&params,handle, &oi),
+		"Could not get object info\n");
+	if (oi.ObjectFormat == PTP_OFC_Association)
+			goto out;
+	if (filename==NULL) filename=(oi.Filename);
+	file=open(filename, O_RDWR|O_CREAT|O_TRUNC,S_IRWXU|S_IRGRP);
+	lseek(file,oi.ObjectCompressedSize-1,SEEK_SET);
+	write(file,"",1);
+	if (file<0) goto out;
+	image=mmap(0,oi.ObjectCompressedSize,PROT_READ|PROT_WRITE,MAP_SHARED,
+		file,0);
+	if ((int)image<=0) {
+		close(file);
+		goto out;
+	}
+	printf ("Filename: %s\n",oi.Filename);
+	ret=ptp_getobject(&params,handle,&image);
+	if (ret!=PTP_RC_OK) ptp_perror(&params,ret);
+	munmap(image,oi.ObjectCompressedSize);
+	close(file);
+out:
+	CR(ptp_closesession(&params), "Could not close session!\n");
+	close_usb(&ptp_usb, dev);
+
+}
+
+
+void
+list_operations (int busn, int devn, short force)
+{
+	PTPParams params;
+	PTP_USB ptp_usb;
+	struct usb_device *dev;
+	int i;
+	const char* name;
+
+	printf("\nListing supported operations...\n");
+#ifdef DEBUG
+	printf("dev %i\tbus %i\n",devn,busn);
+#endif
+	dev=find_device(busn,devn,force);
+	if (dev==NULL) {
+		fprintf(stderr,"could not find any device matching given "
+		"bus/dev numbers\n");
+		exit(-1);
+	}
+	find_endpoints(dev,&ptp_usb.inep,&ptp_usb.outep,&ptp_usb.intep);
+
+	init_ptp_usb(&params, &ptp_usb, dev);
+	CR(ptp_opensession (&params,1),
+		"Could not open session!\n");
+	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
+		"Could not get device info\n");
+	printf("Camera: %s\n",params.deviceinfo.Model);
+	for (i=0; i<params.deviceinfo.OperationsSupported_len; i++)
+	{
+		name=ptp_get_operation_name(&params,
+			params.deviceinfo.OperationsSupported[i]);
+
+		if (name==NULL)
+			printf("  0x%04x: 0x%04x\n",
+				params.deviceinfo.OperationsSupported[i],
+				params.deviceinfo.OperationsSupported[i]);
+		else
+			printf("  0x%04x: %s\n",
+				params.deviceinfo.OperationsSupported[i],name);
+	}
+	CR(ptp_closesession(&params), "Could not close session!\n");
+	close_usb(&ptp_usb, dev);
+
+}
+
+void
+list_properties (int busn, int devn, short force)
+{
+	PTPParams params;
+	PTP_USB ptp_usb;
+	struct usb_device *dev;
+	const char* propdesc;
+	int i;
+
+	printf("\nListing properties...\n");
+#ifdef DEBUG
+	printf("dev %i\tbus %i\n",devn,busn);
+#endif
+	dev=find_device(busn,devn,force);
+	if (dev==NULL) {
+		fprintf(stderr,"could not find any device matching given "
+		"bus/dev numbers\n");
+		exit(-1);
+	}
+	find_endpoints(dev,&ptp_usb.inep,&ptp_usb.outep,&ptp_usb.intep);
+
+	init_ptp_usb(&params, &ptp_usb, dev);
+	CR(ptp_opensession (&params,1),
+		"Could not open session!\n");
+	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
+		"Could not get device info\n");
+	printf("Camera: %s\n",params.deviceinfo.Model);
 	for (i=0; i<params.deviceinfo.DevicePropertiesSupported_len;i++){
-		propdesc=get_property_description(&params,
+		propdesc=ptp_get_property_name(&params,
 			params.deviceinfo.DevicePropertiesSupported[i]);
 		if (propdesc!=NULL) 
-			printf("0x%04x : %s\n",params.deviceinfo.
-				DevicePropertiesSupported[i], propdesc);
+			printf("  0x%04x: %s\n",
+				params.deviceinfo.DevicePropertiesSupported[i],
+				propdesc);
 		else
-			printf("0x%04x : 0x%04x\n",params.deviceinfo.
-				DevicePropertiesSupported[i],
-				params.deviceinfo.
-					DevicePropertiesSupported[i]);
+			printf("  0x%04x: 0x%04x\n",
+				params.deviceinfo.DevicePropertiesSupported[i],
+				params.deviceinfo.DevicePropertiesSupported[i]);
 	}
 	CR(ptp_closesession(&params), "Could not close session!\n");
 	close_usb(&ptp_usb, dev);
@@ -883,6 +760,7 @@ getset_property (int busn,int devn,uint16_t property,char* value,short force)
 	PTPDevicePropDesc dpd;
 	const char* propdesc;
 
+	printf ("\n");
 #ifdef DEBUG
 	printf("dev %i\tbus %i\n",devn,busn);
 #endif
@@ -899,7 +777,7 @@ getset_property (int busn,int devn,uint16_t property,char* value,short force)
 		"Could not open session!\nTry to reset the camera.\n");
 	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
 		"Could not get device info\nTry to reset the camera.\n");
-	propdesc=get_property_description(&params,property);
+	propdesc=ptp_get_property_name(&params,property);
 	printf("Camera: %s",params.deviceinfo.Model);
 	if ((devn!=0)||(busn!=0)) 
 		printf(" (bus %i, dev %i)\n",busn,devn);
@@ -917,49 +795,52 @@ getset_property (int busn,int devn,uint16_t property,char* value,short force)
 	CR(ptp_getdevicepropdesc(&params,property,&dpd),
 		"Could not get device property description!\n"
 		"Try to reset the camera.\n");
-	printf ("Data type is 0x%04x\n",dpd.DataType);
+	if (verbose)
+		printf ("Data type is 0x%04x\n",dpd.DataType);
 	printf ("Current value is ");
 	if (dpd.FormFlag==PTP_DPFF_Enumeration)
 		PRINT_PROPVAL_DEC(dpd.CurrentValue);
 	else 
 		PRINT_PROPVAL_HEX(dpd.CurrentValue);
 	printf("\n");
-	printf ("Factory default value is ");
-	if (dpd.FormFlag==PTP_DPFF_Enumeration)
-		PRINT_PROPVAL_DEC(dpd.FactoryDefaultValue);
-	else 
-		PRINT_PROPVAL_HEX(dpd.FactoryDefaultValue);
-	printf("\n");
-	printf("The property is ");
-	if (dpd.GetSet==PTP_DPGS_Get)
-		printf ("read only");
-	else
-		printf ("settable");
-	switch (dpd.FormFlag) {
-	case PTP_DPFF_Enumeration:
-		printf (", enumerated. Allowed values are:\n");
-		{
-			int i;
-			for(i=0;i<dpd.FORM.Enum.NumberOfValues;i++){
-				PRINT_PROPVAL_HEX(
-				dpd.FORM.Enum.SupportedValue[i]);
-				printf("\n");
-			}
-		}
-		break;
-	case PTP_DPFF_Range:
-		printf (", within range:\n");
-		PRINT_PROPVAL_DEC(dpd.FORM.Range.MinimumValue);
-		printf(" - ");
-		PRINT_PROPVAL_DEC(dpd.FORM.Range.MaximumValue);
-		printf("; step size: ");
-		PRINT_PROPVAL_DEC(dpd.FORM.Range.StepSize);
+
+	if (value==NULL) {
+		printf ("Factory default value is ");
+		if (dpd.FormFlag==PTP_DPFF_Enumeration)
+			PRINT_PROPVAL_DEC(dpd.FactoryDefaultValue);
+		else 
+			PRINT_PROPVAL_HEX(dpd.FactoryDefaultValue);
 		printf("\n");
-		break;
-	case PTP_DPFF_None:
-		printf(".\n");
-	}
-	if (value) {
+		printf("The property is ");
+		if (dpd.GetSet==PTP_DPGS_Get)
+			printf ("read only");
+		else
+			printf ("settable");
+		switch (dpd.FormFlag) {
+		case PTP_DPFF_Enumeration:
+			printf (", enumerated. Allowed values are:\n");
+			{
+				int i;
+				for(i=0;i<dpd.FORM.Enum.NumberOfValues;i++){
+					PRINT_PROPVAL_HEX(
+					dpd.FORM.Enum.SupportedValue[i]);
+					printf("\n");
+				}
+			}
+			break;
+		case PTP_DPFF_Range:
+			printf (", within range:\n");
+			PRINT_PROPVAL_DEC(dpd.FORM.Range.MinimumValue);
+			printf(" - ");
+			PRINT_PROPVAL_DEC(dpd.FORM.Range.MaximumValue);
+			printf("; step size: ");
+			PRINT_PROPVAL_DEC(dpd.FORM.Range.StepSize);
+			printf("\n");
+			break;
+		case PTP_DPFF_None:
+			printf(".\n");
+		}
+	} else {
 		printf("Setting property value to '%s'\n",value);
 		CRE(set_property(&params, property, value, dpd.DataType));
 	}
@@ -1099,6 +980,8 @@ main(int argc, char ** argv)
 	short force=0;
 	uint16_t property=0;
 	char* value=NULL;
+	uint32_t handle;
+	char *filename=NULL;
 	/* parse options */
 	int option_index = 0,opt;
 	static struct option loptions[] = {
@@ -1107,26 +990,29 @@ main(int argc, char ** argv)
 		{"dev",1,0,'D'},
 		{"reset",0,0,'r'},
 		{"list-devices",0,0,'l'},
+		{"list-files",0,0,'L'},
+		{"list-operations",1,0,'o'},
 		{"list-properties",0,0,'p'},
 		{"show-property",1,0,'s'},
 		{"set-property",1,0,'s'},
+		{"get-file",1,0,'g'},
+		{"info",0,0,'i'},
 		{"val",1,0,0},
+		{"filename",1,0,1},
 		{"force",0,0,'f'},
 		{"verbose",2,0,'v'},
 		{0,0,0,0}
 	};
 	
 	while(1) {
-		opt = getopt_long (argc, argv, "hlpfrs:D:B:v::", loptions, &option_index);
+		opt = getopt_long (argc, argv, "Lhlipfrog:s:D:B:v::", loptions, &option_index);
 		if (opt==-1) break;
 	
 		switch (opt) {
+		/* set parameters */
 		case 0:
 			if (!(strcmp("val",loptions[option_index].name)))
 				value=strdup(optarg);
-			break;
-		case 'h':
-			help();
 			break;
 		case 'B':
 			busn=strtol(optarg,NULL,10);
@@ -1144,6 +1030,10 @@ main(int argc, char ** argv)
 				verbose=1;
 			printf("VERBOSE LEVEL  = %i\n",verbose);
 			break;
+		/* actions */
+		case 'h':
+			help();
+			break;
 		case 'r':
 			action=ACT_DEVICE_RESET;
 			break;
@@ -1156,6 +1046,19 @@ main(int argc, char ** argv)
 		case 's':
 			action=ACT_GETSET_PROPERTY;
 			property=strtol(optarg,NULL,16);
+			break;
+		case 'o':
+			action=ACT_LIST_OPERATIONS;
+			break;
+		case 'i':
+			action=ACT_SHOW_INFO;
+			break;
+		case 'L':
+			action=ACT_LIST_FILES;
+			break;
+		case 'g':
+			action=ACT_GET_FILE;
+			handle=strtol(optarg,NULL,16);
 			break;
 		case '?':
 			break;
@@ -1181,6 +1084,18 @@ main(int argc, char ** argv)
 			break;
 		case ACT_GETSET_PROPERTY:
 			getset_property(busn,devn,property,value,force);
+			break;
+		case ACT_SHOW_INFO:
+			show_info(busn,devn,force);
+			break;
+		case ACT_LIST_OPERATIONS:
+			list_operations(busn,devn,force);
+			break;
+		case ACT_LIST_FILES:
+			list_files(busn,devn,force);
+			break;
+		case ACT_GET_FILE:
+			get_file(busn,devn,force,handle,filename);
 			break;
 	}
 
