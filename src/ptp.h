@@ -565,7 +565,7 @@ typedef struct _PTPCANONFolderEntry PTPCANONFolderEntry;
 #define PTP_DPC_NIKON_ColourMode			0xD02c
 #define PTP_DPC_NIKON_HueAdjustment			0xD02d
 #define PTP_DPC_NIKON_NonCPULensDataFocalLength		0xD02e
-#define PTP_DPC_NIKON_NonCPULensDataMaximumAperature	0xD02f
+#define PTP_DPC_NIKON_NonCPULensDataMaximumAperture	0xD02f
 #define PTP_DPC_NIKON_CSMMenuBankSelect			0xD040
 #define PTP_DPC_NIKON_MenuBankNameA			0xD041
 #define PTP_DPC_NIKON_MenuBankNameB			0xD042
@@ -603,7 +603,7 @@ typedef struct _PTPCANONFolderEntry PTPCANONFolderEntry;
 #define PTP_DPC_NIKON_E2FlashShutterSpeed		0xD075
 #define PTP_DPC_NIKON_E3AAFlashMode			0xD076
 #define PTP_DPC_NIKON_E4ModelingFlash			0xD077
-#define PTP_DPC_NIKON_E5AutoBracketySet			0xD078
+#define PTP_DPC_NIKON_E5AutoBracketSet			0xD078
 #define PTP_DPC_NIKON_E6ManualModeBracketing		0xD079	
 #define PTP_DPC_NIKON_E7AutoBracketOrder		0xD07a
 #define PTP_DPC_NIKON_E8AutoBracketSelection		0xD07b
@@ -614,10 +614,12 @@ typedef struct _PTPCANONFolderEntry PTPCANONFolderEntry;
 #define PTP_DPC_NIKON_F4AssignFuncButton		0xD084
 #define PTP_DPC_NIKON_F5CustomizeCommDials		0xD085
 #define PTP_DPC_NIKON_ChangeMainSub			0xD086
-#define PTP_DPC_NIKON_AperatureSetting			0xD087
+#define PTP_DPC_NIKON_ApertureSetting			0xD087
 #define PTP_DPC_NIKON_MenusAndPlayback			0xD088
 #define PTP_DPC_NIKON_F6ButtonsAndDials			0xD089
 #define PTP_DPC_NIKON_F7NoCFCard			0xD08a
+#define PTP_DPC_NIKON_ImageCommentString		0xD090
+#define PTP_DPC_NIKON_ImageCommentAttached		0xD091
 #define PTP_DPC_NIKON_AutoImageRotation			0xD092
 #define PTP_DPC_NIKON_ExposureBracketingOnOff		0xD0c0
 #define PTP_DPC_NIKON_ExposureBracketingIntervalDist	0xD0c1
@@ -625,7 +627,7 @@ typedef struct _PTPCANONFolderEntry PTPCANONFolderEntry;
 #define PTP_DPC_NIKON_AutofocusLCDTopMode2		0xD107
 #define PTP_DPC_NIKON_AutofocusLCDTopMode3AndMode4	0xD108
 #define PTP_DPC_NIKON_LightMeter			0xD10a
-#define PTP_DPC_NIKON_ExposureAperatureLock(ReadOnly)	0xD111
+#define PTP_DPC_NIKON_ExposureApertureLock		0xD111
 #define PTP_DPC_NIKON_MaximumShots			0xD103
 #define PTP_DPC_NIKON_Beep                              0xD160
 #define PTP_DPC_NIKON_AFC                               0xD161

@@ -1,6 +1,7 @@
+
 /* ptpcam.c
  *
- * Copyright (C) 2001-2004 Mariusz Woloszyn <emsi@ipartners.pl>
+ * Copyright (C) 2001-2005 Mariusz Woloszyn <emsi@ipartners.pl>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,6 +18,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -48,6 +50,7 @@
 #endif
 
 #include "ptp.h"
+#include "ptpcam.h"
 
 /* some defines comes here */
 
@@ -58,10 +61,10 @@
 
 /* USB control message data phase direction */
 #ifndef USB_DP_HTD
-#define USB_DP_HTD		(0x00 << 7)	// host to device
+#define USB_DP_HTD		(0x00 << 7)	/* host to device */
 #endif
 #ifndef USB_DP_DTH
-#define USB_DP_DTH		(0x01 << 7)	// device to host
+#define USB_DP_DTH		(0x01 << 7)	/* device to host */
 #endif
 
 /* PTP class specific requests */
@@ -77,90 +80,7 @@
 #define USB_FEATURE_HALT	0x00
 #endif
 
-/* Check value and Return on error */
-#define CR(result,error) {						\
-			if((result)!=PTP_RC_OK) {			\
-				fprintf(stderr,"ERROR: "error);		\
-				close_usb(&ptp_usb, dev);		\
-				return;					\
-			}						\
-}
-
-/* Check value and Return -1 on error */
-#define CRR(result) {							\
-			if((result)!=PTP_RC_OK) {			\
-				return -1;				\
-			}						\
-}
-
-/* Check value and Report (PTP) Error if needed */
-#define CRE(result) {							\
-			uint16_t r;					\
-			r=(result);					\
-			if (r!=PTP_RC_OK)				\
-				ptp_perror(&params,r);			\
-}
-
-/* Check value and Continue on error */
-#define CC(result,error) {						\
-			if((result)!=PTP_RC_OK) {			\
-				fprintf(stderr,"ERROR: "error);		\
-				usb_release_interface(ptp_usb.handle,	\
-		dev->config->interface->altsetting->bInterfaceNumber);	\
-				continue;					\
-			}						\
-}
-
-/* error reporting macro */
-#define ERROR(error) fprintf(stderr,"ERROR: "error);				
-
-/* printing value type */
-#define PTPCAM_PRINT_HEX	00
-#define PTPCAM_PRINT_DEC	01
-
-/* property value printing macros */
-#define PRINT_PROPVAL_DEC(value)	\
-		print_propval(dpd.DataType, value,			\
-		PTPCAM_PRINT_DEC)
-
-#define PRINT_PROPVAL_HEX(value)					\
-		print_propval(dpd.DataType, value,			\
-		PTPCAM_PRINT_HEX)
-
-
-/* requested actions */
-#define ACT_DEVICE_RESET	0x1
-#define ACT_LIST_DEVICES	0x2
-#define ACT_LIST_PROPERTIES	0x3
-#define ACT_LIST_OPERATIONS	0x4
-#define ACT_GETSET_PROPERTY	0x5
-#define ACT_SHOW_INFO		0x6
-#define ACT_LIST_FILES		0x7
-#define ACT_GET_FILE		0x8
-
-
-			
-typedef struct _PTP_USB PTP_USB;
-struct _PTP_USB {
-	usb_dev_handle* handle;
-	int inep;
-	int outep;
-	int intep;
-};
-
-/* some functions declarations to avoid warnings */
-
-//void talk (struct usb_device*, int , int , int );
-void usage(void);
-void help(void);
-struct usb_bus* init_usb(void);
-void init_ptp_usb (PTPParams*, PTP_USB*, struct usb_device*);
-void list_devices(short force);
-void list_properties (int dev, int bus, short force);
-
-
-// one global variable (yes, I know it sucks)
-
+/* one global variable (yes, I know it sucks) */
 short verbose=0;
 
 
@@ -175,7 +95,6 @@ help()
 {
 	printf("USAGE: ptpcam [OPTION]\n\n");
 	printf("Options:\n"
-	"  -h, --help                   Print this help message\n"
 	"  -B, --bus=BUS-NUMBER         USB bus number\n"
 	"  -D, --dev=DEV-NUMBER         USB assigned device number\n"
 	"  -r, --reset                  Reset the device\n"
@@ -192,8 +111,12 @@ help()
 	"  --val=VALUE                  Property value\n"
 	"  -L, --list-files             List all files\n"
 	"  -g, --get-file=HANDLE        Get file by given handler\n"
+	"  -G, --get-all-files          Get all files\n"
+	"  --overwrite                  Force file overwrite while saving"
+					"to disk\n"
 	"  -f, --force                  Talk to non PTP devices\n"
-	"  -v, --verbose                Be verbosive (print more debug)\n"
+	"  -v, --verbose                Be verbose (print more debug)\n"
+	"  -h, --help                   Print this help message\n"
 	"\n");
 }
 
@@ -204,9 +127,9 @@ ptp_read_func (unsigned char *bytes, unsigned int size, void *data)
 	int result;
 	PTP_USB *ptp_usb=(PTP_USB *)data;
 
-	result=usb_bulk_read(ptp_usb->handle, ptp_usb->inep, bytes, size,3000);
+	result=usb_bulk_read(ptp_usb->handle, ptp_usb->inep,(char *)bytes, size,3000);
 	if (result==0)
-	result=usb_bulk_read(ptp_usb->handle, ptp_usb->inep, bytes, size,3000);
+	result=usb_bulk_read(ptp_usb->handle, ptp_usb->inep,(char *)bytes, size,3000);
 	if (result >= 0)
 		return (PTP_RC_OK);
 	else 
@@ -222,7 +145,7 @@ ptp_write_func (unsigned char *bytes, unsigned int size, void *data)
 	int result;
 	PTP_USB *ptp_usb=(PTP_USB *)data;
 
-	result=usb_bulk_write(ptp_usb->handle,ptp_usb->outep,bytes,size,3000);
+	result=usb_bulk_write(ptp_usb->handle,ptp_usb->outep,(char *)bytes,size,3000);
 	if (result >= 0)
 		return (PTP_RC_OK);
 	else 
@@ -238,9 +161,9 @@ ptp_check_int (unsigned char *bytes, unsigned int size, void *data)
 	int result;
 	PTP_USB *ptp_usb=(PTP_USB *)data;
 
-	result=usb_bulk_read(ptp_usb->handle, ptp_usb->intep,bytes,size,100);
+	result=usb_bulk_read(ptp_usb->handle, ptp_usb->intep,(char *)bytes,size,100);
 	if (result==0)
-		result = usb_bulk_read(ptp_usb->handle, ptp_usb->intep, bytes, size, 100);
+		result = usb_bulk_read(ptp_usb->handle, ptp_usb->intep,(char *) bytes, size, 100);
 	return (result);
 }
 
@@ -299,29 +222,34 @@ init_ptp_usb (PTPParams* params, PTP_USB* ptp_usb, struct usb_device* dev)
 	}
 }
 
-void close_usb(PTP_USB* ptp_usb, struct usb_device* dev)
+void
+clear_stall(PTP_USB* ptp_usb, struct usb_device* dev)
 {
 	uint16_t status;
 
-	// check the inep status
-	usb_get_endpoint_status(&ptp_usb,ptp_usb->inep,&status);
-	// and clear the HALT condition if happend
+	/* check the inep status */
+	usb_get_endpoint_status(ptp_usb,ptp_usb->inep,&status);
+	/* and clear the HALT condition if happend */
 	if (status) {
-		usb_clear_stall_feature(&ptp_usb,ptp_usb->inep);
-        	//usb_clear_halt(ptp_usb->handle,ptp_usb->inep);
+		usb_clear_stall_feature(ptp_usb,ptp_usb->inep);
+        	/*usb_clear_halt(ptp_usb->handle,ptp_usb->inep); */
 	}
-	// check the outep status
-	usb_get_endpoint_status(&ptp_usb,ptp_usb->outep,&status);
+	/* check the outep status */
+	usb_get_endpoint_status(ptp_usb,ptp_usb->outep,&status);
 	if (status) {
-        	usb_clear_stall_feature(&ptp_usb,ptp_usb->outep);
-		//usb_clear_halt(ptp_usb->handle,ptp_usb->outep);
+        	usb_clear_stall_feature(ptp_usb,ptp_usb->outep);
+		/*usb_clear_halt(ptp_usb->handle,ptp_usb->outep); */
 	}
+        /*usb_clear_halt(ptp_usb->handle,ptp_usb->intep); */
+}
 
-        //usb_clear_halt(ptp_usb->handle,ptp_usb->intep);
+void
+close_usb(PTP_USB* ptp_usb, struct usb_device* dev)
+{
+	clear_stall(ptp_usb, dev);
         usb_release_interface(ptp_usb->handle,
                 dev->config->interface->altsetting->bInterfaceNumber);
         usb_close(ptp_usb->handle);
-
 }
 
 
@@ -396,6 +324,39 @@ find_endpoints(struct usb_device *dev, int* inep, int* outep, int* intep)
 	}
 }
 
+int
+open_camera (int busn, int devn, short force, PTP_USB *ptp_usb, PTPParams *params, struct usb_device **dev)
+{
+#ifdef DEBUG
+	printf("dev %i\tbus %i\n",devn,busn);
+#endif
+	
+	*dev=find_device(busn,devn,force);
+	if (*dev==NULL) {
+		fprintf(stderr,"could not find any device matching given "
+		"bus/dev numbers\n");
+		exit(-1);
+	}
+	find_endpoints(*dev,&ptp_usb->inep,&ptp_usb->outep,&ptp_usb->intep);
+
+	init_ptp_usb(params, ptp_usb, *dev);
+	if (ptp_opensession(params,1)!=PTP_RC_OK) {
+		fprintf(stderr,"ERROR: Could not open session!\n");
+		close_usb(ptp_usb, *dev);
+		return -1;
+	}
+	return 0;
+}
+
+void
+close_camera (PTP_USB *ptp_usb, PTPParams *params, struct usb_device *dev)
+{
+	if (ptp_closesession(params)!=PTP_RC_OK)
+		fprintf(stderr,"ERROR: Could not close session!\n");
+	close_usb(ptp_usb, dev);
+}
+
+
 void
 list_devices(short force)
 {
@@ -456,25 +417,11 @@ show_info (int busn, int devn, short force)
 	PTPParams params;
 	PTP_USB ptp_usb;
 	struct usb_device *dev;
-	int i;
-	const char* name;
 
 	printf("\nCamera information\n");
 	printf("==================\n");
-#ifdef DEBUG
-	printf("dev %i\tbus %i\n",devn,busn);
-#endif
-	dev=find_device(busn,devn,force);
-	if (dev==NULL) {
-		fprintf(stderr,"could not find any device matching given "
-		"bus/dev numbers\n");
-		exit(-1);
-	}
-	find_endpoints(dev,&ptp_usb.inep,&ptp_usb.outep,&ptp_usb.intep);
-
-	init_ptp_usb(&params, &ptp_usb, dev);
-	CR(ptp_opensession (&params,1),
-		"Could not open session!\n");
+	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
+		return;
 	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
 		"Could not get device info\n");
 	printf("Model: %s\n",params.deviceinfo.Model);
@@ -488,8 +435,7 @@ show_info (int busn, int devn, short force)
 	printf("  extension version: 0x%04x\n",
 				params.deviceinfo.VendorExtensionVersion);
 	printf("\n");
-	CR(ptp_closesession(&params), "Could not close session!\n");
-	close_usb(&ptp_usb, dev);
+	close_camera(&ptp_usb, &params, dev);
 }
 
 void
@@ -502,20 +448,8 @@ list_files (int busn, int devn, short force)
 	PTPObjectInfo oi;
 
 	printf("\nListing files...\n");
-#ifdef DEBUG
-	printf("dev %i\tbus %i\n",devn,busn);
-#endif
-	dev=find_device(busn,devn,force);
-	if (dev==NULL) {
-		fprintf(stderr,"could not find any device matching given "
-		"bus/dev numbers\n");
-		exit(-1);
-	}
-	find_endpoints(dev,&ptp_usb.inep,&ptp_usb.outep,&ptp_usb.intep);
-
-	init_ptp_usb(&params, &ptp_usb, dev);
-	CR(ptp_opensession (&params,1),
-		"Could not open session!\n");
+	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
+		return;
 	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
 		"Could not get device info\n");
 	printf("Camera: %s\n",params.deviceinfo.Model);
@@ -531,37 +465,23 @@ list_files (int busn, int devn, short force)
 			oi.ObjectCompressedSize, oi.Filename);
 	}
 	printf("\n");
-	CR(ptp_closesession(&params), "Could not close session!\n");
-	close_usb(&ptp_usb, dev);
+	close_camera(&ptp_usb, &params, dev);
 }
 
 void
-get_file (int busn, int devn, short force, uint32_t handle, char* filename)
+get_file (int busn, int devn, short force, uint32_t handle, char* filename,
+int overwrite)
 {
 	PTPParams params;
 	PTP_USB ptp_usb;
 	struct usb_device *dev;
-	int i;
 	int file;
 	PTPObjectInfo oi;
 	char *image;
 	int ret;
 
-	printf("\nDownloading file...\n");
-#ifdef DEBUG
-	printf("dev %i\tbus %i\n",devn,busn);
-#endif
-	dev=find_device(busn,devn,force);
-	if (dev==NULL) {
-		fprintf(stderr,"could not find any device matching given "
-		"bus/dev numbers\n");
-		exit(-1);
-	}
-	find_endpoints(dev,&ptp_usb.inep,&ptp_usb.outep,&ptp_usb.intep);
-
-	init_ptp_usb(&params, &ptp_usb, dev);
-	CR(ptp_opensession (&params,1),
-		"Could not open session!\n");
+	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
+		return;
 	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
 		"Could not get device info\n");
 	printf("Camera: %s\n",params.deviceinfo.Model);
@@ -573,7 +493,15 @@ get_file (int busn, int devn, short force, uint32_t handle, char* filename)
 	if (oi.ObjectFormat == PTP_OFC_Association)
 			goto out;
 	if (filename==NULL) filename=(oi.Filename);
-	file=open(filename, O_RDWR|O_CREAT|O_TRUNC,S_IRWXU|S_IRGRP);
+	file=open(filename, (overwrite==OVERWRITE_EXISTING?0:O_EXCL)|O_RDWR|O_CREAT|O_TRUNC,S_IRWXU|S_IRGRP);
+	if (file==-1) {
+		if (errno==EEXIST) {
+			printf("Skipping file: \"%s\", file exists!\n",filename);
+			goto out;
+		}
+		perror("open");
+		goto out;
+	}
 	lseek(file,oi.ObjectCompressedSize-1,SEEK_SET);
 	write(file,"",1);
 	if (file<0) goto out;
@@ -583,15 +511,101 @@ get_file (int busn, int devn, short force, uint32_t handle, char* filename)
 		close(file);
 		goto out;
 	}
-	printf ("Filename: %s\n",oi.Filename);
+	printf ("Saving file: \"%s\" ",filename);
+	fflush(NULL);
 	ret=ptp_getobject(&params,handle,&image);
-	if (ret!=PTP_RC_OK) ptp_perror(&params,ret);
 	munmap(image,oi.ObjectCompressedSize);
 	close(file);
+	if (ret!=PTP_RC_OK) {
+		printf ("error!\n");
+		ptp_perror(&params,ret);
+	} else {
+		printf("is done.\n");
+	}
 out:
-	CR(ptp_closesession(&params), "Could not close session!\n");
-	close_usb(&ptp_usb, dev);
+	close_camera(&ptp_usb, &params, dev);
 
+}
+
+void    
+get_all_files (int busn, int devn, short force, int overwrite);
+
+void
+get_all_files (int busn, int devn, short force, int overwrite)
+{
+	PTPParams params;
+	PTP_USB ptp_usb;
+	struct usb_device *dev;
+	int file;
+	PTPObjectInfo oi;
+	uint32_t handle;
+	char *image;
+	int ret;
+	int i;
+	char *filename;
+
+	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
+		return;
+	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
+		"Could not get device info\n");
+	printf("Camera: %s\n",params.deviceinfo.Model);
+
+	CR(ptp_getobjecthandles (&params,0xffffffff, 0x000000, 0x000000,
+		&params.handles),"Could not get object handles\n");
+
+	for (i=0; i<params.handles.n; i++) {
+		memset(&oi, 0, sizeof(PTPObjectInfo));
+		handle=params.handles.Handler[i];
+		if (verbose)
+			printf ("Handle: 0x%08x\n",handle);
+		if ((ret=ptp_getobjectinfo(&params,handle, &oi))!=PTP_RC_OK){
+			fprintf(stderr,"ERROR: Could not get object info\n");
+			ptp_perror(&params,ret);
+			if (ret==PTP_ERROR_IO) clear_stall(&ptp_usb, dev);
+			continue;
+		}
+
+		if (oi.ObjectFormat == PTP_OFC_Association)
+				goto out;
+		filename=(oi.Filename);
+		file=open(filename, (overwrite==OVERWRITE_EXISTING?0:O_EXCL)|O_RDWR|O_CREAT|O_TRUNC,S_IRWXU|S_IRGRP);
+		if (file==-1) {
+			if (errno==EEXIST) {
+				printf("Skipping file: \"%s\", file exists!\n",filename);
+				continue;
+			}
+			perror("open");
+			goto out;
+		}
+		lseek(file,oi.ObjectCompressedSize-1,SEEK_SET);
+		ret=write(file,"",1);
+		if (ret==-1) {
+			perror("write");
+			goto out;
+		}
+		image=mmap(0,oi.ObjectCompressedSize,PROT_READ|PROT_WRITE,MAP_SHARED,
+			file,0);
+		if (image==MAP_FAILED) {
+			perror("mmap");
+			close(file);
+			goto out;
+		}
+		printf ("Saving file: \"%s\" ",filename);
+		fflush(NULL);
+		ret=ptp_getobject(&params,handle,&image);
+		munmap(image,oi.ObjectCompressedSize);
+		close(file);
+		if (ret!=PTP_RC_OK) {
+			printf ("error!\n");
+			ptp_perror(&params,ret);
+			if (ret==PTP_ERROR_IO) clear_stall(&ptp_usb, dev);
+		} else {
+			printf("is done.\n");
+		}
+out:
+		;
+	}
+	close_camera(&ptp_usb, &params, dev);
 }
 
 
@@ -799,7 +813,7 @@ getset_property (int busn,int devn,uint16_t property,char* value,short force)
 		printf("\n");
 	if (!ptp_property_issupported(&params, property))
 	{
-		fprintf(stderr,"The dvice does not support this property!\n");
+		fprintf(stderr,"The device does not support this property!\n");
 		CR(ptp_closesession(&params), "Could not close session!\n"
 			"Try to reset the camera.\n");
 		return;
@@ -865,8 +879,6 @@ getset_property (int busn,int devn,uint16_t property,char* value,short force)
 }
 
 int
-usb_get_endpoint_status(PTP_USB* ptp_usb, int ep, uint16_t* status);
-int
 usb_get_endpoint_status(PTP_USB* ptp_usb, int ep, uint16_t* status)
 {
 	 return (usb_control_msg(ptp_usb->handle,
@@ -874,8 +886,6 @@ usb_get_endpoint_status(PTP_USB* ptp_usb, int ep, uint16_t* status)
 		USB_FEATURE_HALT, ep, (char *)status, 2, 3000));
 }
 
-int
-usb_clear_stall_feature(PTP_USB* ptp_usb, int ep);
 int
 usb_clear_stall_feature(PTP_USB* ptp_usb, int ep)
 {
@@ -931,40 +941,40 @@ reset_device (int busn, int devn, short force)
 
 	init_ptp_usb(&params, &ptp_usb, dev);
 	
-	// get device status (devices likes that regardless of its result)
+	/* get device status (devices likes that regardless of its result)*/
 	usb_ptp_get_device_status(&ptp_usb,devstatus);
 	
-	// check the in endpoint status
+	/* check the in endpoint status*/
 	ret = usb_get_endpoint_status(&ptp_usb,ptp_usb.inep,&status);
 	if (ret<0) perror ("usb_get_endpoint_status()");
-	// and clear the HALT condition if happend
+	/* and clear the HALT condition if happend*/
 	if (status) {
 		printf("Resetting input pipe!\n");
 		ret=usb_clear_stall_feature(&ptp_usb,ptp_usb.inep);
 		if (ret<0)perror ("usb_clear_stall_feature()");
 	}
 	status=0;
-	// check the out endpoint status
+	/* check the out endpoint status*/
 	ret = usb_get_endpoint_status(&ptp_usb,ptp_usb.outep,&status);
 	if (ret<0) perror ("usb_get_endpoint_status()");
-	// and clear the HALT condition if happend
+	/* and clear the HALT condition if happend*/
 	if (status) {
 		printf("Resetting output pipe!\n");
 		ret=usb_clear_stall_feature(&ptp_usb,ptp_usb.outep);
 		if (ret<0)perror ("usb_clear_stall_feature()");
 	}
 	status=0;
-	// check the interrupt endpoint status
+	/* check the interrupt endpoint status*/
 	ret = usb_get_endpoint_status(&ptp_usb,ptp_usb.intep,&status);
 	if (ret<0)perror ("usb_get_endpoint_status()");
-	// and clear the HALT condition if happend
+	/* and clear the HALT condition if happend*/
 	if (status) {
 		printf ("Resetting interrupt pipe!\n");
 		ret=usb_clear_stall_feature(&ptp_usb,ptp_usb.intep);
 		if (ret<0)perror ("usb_clear_stall_feature()");
 	}
 
-	// get device status (now there should be some results)
+	/* get device status (now there should be some results)*/
 	ret = usb_ptp_get_device_status(&ptp_usb,devstatus);
 	if (ret<0) 
 		perror ("usb_ptp_get_device_status()");
@@ -975,13 +985,14 @@ reset_device (int busn, int devn, short force)
 			printf ("Device status 0x%04x\n",devstatus[1]);
 	}
 	
-	// finally reset the device (that clears prevoiusly opened sessions)
+	/* finally reset the device (that clears prevoiusly opened sessions)*/
 	ret = usb_ptp_device_reset(&ptp_usb);
 	if (ret<0)perror ("usb_ptp_device_reset()");
-	// get device status (devices likes that regardless of its result)
+	/* get device status (devices likes that regardless of its result)*/
 	usb_ptp_get_device_status(&ptp_usb,devstatus);
 
 	close_usb(&ptp_usb, dev);
+
 }
 
 /* main program  */
@@ -992,9 +1003,10 @@ main(int argc, char ** argv)
 	int busn=0,devn=0;
 	int action=0;
 	short force=0;
+	int overwrite=SKIP_IF_EXISTS;
 	uint16_t property=0;
 	char* value=NULL;
-	uint32_t handle;
+	uint32_t handle=0;
 	char *filename=NULL;
 	/* parse options */
 	int option_index = 0,opt;
@@ -1010,16 +1022,18 @@ main(int argc, char ** argv)
 		{"show-property",1,0,'s'},
 		{"set-property",1,0,'s'},
 		{"get-file",1,0,'g'},
+		{"get-all-files",0,0,'G'},
 		{"info",0,0,'i'},
 		{"val",1,0,0},
-		{"filename",1,0,1},
+		{"filename",1,0,0},
+		{"overwrite",0,0,0},
 		{"force",0,0,'f'},
 		{"verbose",2,0,'v'},
 		{0,0,0,0}
 	};
 	
 	while(1) {
-		opt = getopt_long (argc, argv, "Lhlipfrog:s:D:B:v::", loptions, &option_index);
+		opt = getopt_long (argc, argv, "LhlipfroGg:s:D:B:v::", loptions, &option_index);
 		if (opt==-1) break;
 	
 		switch (opt) {
@@ -1027,6 +1041,10 @@ main(int argc, char ** argv)
 		case 0:
 			if (!(strcmp("val",loptions[option_index].name)))
 				value=strdup(optarg);
+			if (!(strcmp("filename",loptions[option_index].name)))
+				filename=strdup(optarg);
+			if (!(strcmp("overwrite",loptions[option_index].name)))
+				overwrite=OVERWRITE_EXISTING;
 			break;
 		case 'B':
 			busn=strtol(optarg,NULL,10);
@@ -1074,6 +1092,9 @@ main(int argc, char ** argv)
 			action=ACT_GET_FILE;
 			handle=strtol(optarg,NULL,16);
 			break;
+		case 'G':
+			action=ACT_GET_ALL_FILES;
+			break;
 		case '?':
 			break;
 		default:
@@ -1109,7 +1130,10 @@ main(int argc, char ** argv)
 			list_files(busn,devn,force);
 			break;
 		case ACT_GET_FILE:
-			get_file(busn,devn,force,handle,filename);
+			get_file(busn,devn,force,handle,filename,overwrite);
+			break;
+		case ACT_GET_ALL_FILES:
+			get_all_files(busn,devn,force,overwrite);
 			break;
 	}
 
