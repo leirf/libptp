@@ -301,9 +301,23 @@ init_ptp_usb (PTPParams* params, PTP_USB* ptp_usb, struct usb_device* dev)
 
 void close_usb(PTP_USB* ptp_usb, struct usb_device* dev)
 {
-        usb_clear_halt(ptp_usb->handle,ptp_usb->inep);
-        usb_clear_halt(ptp_usb->handle,ptp_usb->outep);
-        usb_clear_halt(ptp_usb->handle,ptp_usb->intep);
+	uint16_t status;
+
+	// check the inep status
+	usb_get_endpoint_status(&ptp_usb,ptp_usb->inep,&status);
+	// and clear the HALT condition if happend
+	if (status) {
+		usb_clear_stall_feature(&ptp_usb,ptp_usb->inep);
+        	//usb_clear_halt(ptp_usb->handle,ptp_usb->inep);
+	}
+	// check the outep status
+	usb_get_endpoint_status(&ptp_usb,ptp_usb->outep,&status);
+	if (status) {
+        	usb_clear_stall_feature(&ptp_usb,ptp_usb->outep);
+		//usb_clear_halt(ptp_usb->handle,ptp_usb->outep);
+	}
+
+        //usb_clear_halt(ptp_usb->handle,ptp_usb->intep);
         usb_release_interface(ptp_usb->handle,
                 dev->config->interface->altsetting->bInterfaceNumber);
         usb_close(ptp_usb->handle);
