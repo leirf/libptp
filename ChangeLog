@@ -1,3 +1,8 @@
+2004-07-16 Mariusz Woloszyn
+	* ptp.h, ptpcam.c: added NIKON extension code and clear halt fixup
+	  by Corey Manders
+	* m4/byteorder.m4, stdint.m4: Added quoting for Automake >= 1.8
+	* config.h.in: removed
 2003-12-18 Mariusz Woloszyn
 	* ptp.c, ptp-h.c, ptp-pack.c: added Canon specific PTP extension
 	  code by Nikolai Kopanygin
