@@ -21,12 +21,7 @@
 #ifndef __PTP_H__
 #define __PTP_H__
 
-// PTP protocol constatnts and structures definition folows
-
-// USB timeout value
-
-#define PTP_USB_TIMEOUT                 2000
-
+#include <stdarg.h>
 
 // Container types
 
@@ -109,28 +104,7 @@
 #define PTP_ERROR_RESP_EXPECTED		0x2FD
 #define PTP_ERROR_BADPARAM		0x2fC
 
-// Error description structure
-#include "ptperr.h"
-
-// Requests
-
 #define PTP_REQ_DATALEN                 16384
-#define PTP_REQ_LEN                     30
-#define PTP_REQ_HDR_LEN                 (2*sizeof(int)+2*sizeof(short))
-#define PTP_RESP_LEN                    sizeof(PTPReq)
-
-
-// PTP request/response type
-
-typedef struct _PTPReq PTPReq;
-struct _PTPReq {
-	int len;
-	short type;
-	short code;
-	int trans_id;
-	char data[PTP_REQ_DATALEN];
-};
-
 
 // PTP device info structure (returned by GetDevInfo)
 
@@ -177,45 +151,42 @@ struct _PTPObjectInfo {
 
 // Glue stuff
 
-typedef enum _PTPResult PTPResult;
-enum _PTPResult {
-	PTP_OK,
-	PTP_ERROR
-};
-
-typedef PTPResult (* PTPIOReadFunc)  (PTPReq *bytes,
-				      unsigned int size, void *data);
-typedef PTPResult (* PTPIOWriteFunc) (PTPReq *bytes,
-				      unsigned int size, void *data);
-typedef void (* PTPError) (char *errmsg,...);
+typedef short (* PTPIOReadFunc)  (unsigned char *bytes, unsigned int size,
+				  void *data);
+typedef short (* PTPIOWriteFunc) (unsigned char *bytes, unsigned int size,
+				  void *data);
+typedef void (* PTPErrorFunc) (void *data, const char *format, va_list args);
+typedef void (* PTPDebugFunc) (void *data, const char *format, va_list args);
 
 typedef struct _PTPParams PTPParams;
 struct _PTPParams {
-	PTPIOReadFunc io_read;
-	PTPIOWriteFunc io_write;
-	PTPError ptp_error;
-	int id;		// Transaction ID
-	void *io_data;
+
+	/* Custom IO functions */
+	PTPIOReadFunc  read_func;
+	PTPIOWriteFunc write_func;
+
+	/* Custom error and debug function */
+	PTPErrorFunc error_func;
+	PTPDebugFunc debug_func;
+
+	/* Data passed to above functions */
+	void *data;
+
+	/* Used by libptp */
+	unsigned int transaction_id;
 };
 
 
 // ptp functions
 
-short
-ptp_opensession(PTPParams* params, int session);
-short
-ptp_closesession(PTPParams* params);
-short
-ptp_getobjecthandles(PTPParams* params, PTPObjectHandles* objecthandles);
-short
-ptp_getobjectsinfo(PTPParams* params, PTPObjectHandles* objecthandles,
-			PTPObjectInfo** objectinfoarray, int n);
-short
-ptp_getobject(PTPParams* params, PTPObjectHandles* objecthandles,
-			PTPObjectInfo* objectinfoarray, int n,
-			char* object);
+short ptp_opensession  (PTPParams *params, int session);
+short ptp_closesession (PTPParams *params);
 
-/* no more yet ;) */
-
+short ptp_getobjecthandles (PTPParams *params, PTPObjectHandles* objecthandles);
+short ptp_getobjectinfo   (PTPParams *params, PTPObjectHandles* objecthandles,
+			    int n, PTPObjectInfo* objectinfoarray);
+short ptp_getobject        (PTPParams *params, PTPObjectHandles* objecthandles,
+			    PTPObjectInfo* objectinfoarray, int n,
+			    char* object);
 
 #endif /* __PTP_H__ */
