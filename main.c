@@ -22,7 +22,7 @@ void error(char *x,...);
 
 query (usb_dev_handle* handle) {
 	PTPObjectHandles* ptp_objecthandles=malloc(sizeof(PTPObjectHandles));
-	PTPObjectInfo** ptp_objectinfo;
+	PTPObjectInfo*** ptp_objectinfo=malloc(sizeof(PTPObjectInfo**));
 	int ret;
 	struct objectinfo** objinfoarray;
 
@@ -45,6 +45,8 @@ query (usb_dev_handle* handle) {
 		==PTP_RC_OK)
 		printf("GETOBJECTINFO OK!\n");
 // close
+
+	printf("ObjSize of #2 %i\n", (*ptp_objectinfo)[2]->ObjectCompressedSize);
 	if (ptp_closesession(ptp_params)==PTP_RC_OK) printf ("CLOSE OK\n");
 
 }
