@@ -1,3 +1,14 @@
+2005-03-01 Mariusz Woloszyn
+	* ptp.c, ptp.h, ptp-pack.c, ptpcam.c: moved to src
+	* src/ptpcam.c: moved some defines and definitions to ptpcam.h,
+	  added "get all files" operations, added --overwrite mode,
+	  fixed stall problem for kernels 2.6.x (affecting CANON cameras),
+	  some code cleanup and reorganization, changed comments to /**/
+	* src/ptp.c, src/ptp.h: fixed properties typos and added new
+	  properties
+	* src/ptpcam.h: added
+	* configure.in, Makefile.am, src/Makefile.am: improved and adapted
+	  build system
 2005-02-14 Mariusz Woloszyn
 	* ptpcam.c: fix for canon STALL problem; big thanks come to
 		DervishD (bugs[A@T]dervishd.net) for helping to identify the
