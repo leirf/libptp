@@ -565,7 +565,7 @@ get_file (int busn, int devn, short force, uint32_t handle, char* filename)
 	if (file<0) goto out;
 	image=mmap(0,oi.ObjectCompressedSize,PROT_READ|PROT_WRITE,MAP_SHARED,
 		file,0);
-	if ((int)image<=0) {
+	if (image==MAP_FAILED) {
 		close(file);
 		goto out;
 	}

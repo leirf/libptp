@@ -1,3 +1,5 @@
+2005-01-20 Mariusz Woloszyn
+	* ptpcam.c: fixed mmap() return value comparision, thx to Pallab Basu
 2005-01-10 Mariusz Woloszyn
 	* ptp.h, ptp.c: added Nikon properties reported by Steve Harris
 2004-07-28 Mariusz Woloszyn
