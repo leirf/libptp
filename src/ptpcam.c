@@ -718,7 +718,7 @@ getset_property (int busn,int devn,uint16_t property,char* value,short force)
 		printf(" (bus %i, dev %i)\n",busn,devn);
 	else
 		printf("\n");
-	if (!ptp_property_issupported(&params, property)||propdesc==NULL)
+	if (!ptp_property_issupported(&params, property))
 	{
 		fprintf(stderr,"The dvice does not support this property!\n");
 		CR(ptp_closesession(&params), "Could not close session!\n"

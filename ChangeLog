@@ -1,4 +1,6 @@
-2003-05-23 mariusz Woloszyn
+2003-05-24 Mariusz Woloszyn
+	* ptpcam.c: fixed bug causing not displaying unknown properties
+2003-05-23 Mariusz Woloszyn
 	* README: at last (but not least) the great README!!!
 	* ptpcam.c: a couple of typos
 2003-05-19 Mariusz Woloszyn
