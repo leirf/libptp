@@ -373,7 +373,7 @@ Try to reset the camera.
 
 In such a case you need to isse a --reset request to the camera:
 
-root@emsi(chroot):~emsi/cvs/libptp2-1.0pre3# ptpcam --reset
+root@emsi(chroot):~# ptpcam --reset
 Resetting input pipe!
 Device status OK
 
