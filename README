@@ -10,8 +10,6 @@ ptp.c		- the main libptp2 code; this library is used to communicate
 		  with PTP devices
 ptp.h		- libptp2 header files
 ptp-pack.c	- this file is included into ptp.c (internal code)
-library.c	- gphoto2 PTP driver (used by gphoto2 to communicate with
-		  PTP devices)
 ptpcam.c	- the software to manimpulate PTP cameras
 		  (currently get/set properties); it does things that
 		  you can't do with gphoto2
@@ -21,6 +19,26 @@ functional and quite stable.
 It was written to be used with gphoto2, but can be easily used with any other
 software.
 
+==============
+*Requirements*
+==============
+
+Currently this package requires libusb to build ptpcam. The library itself
+is transport independent and does not require libusb, however no other
+transport layer has been tested due to lack of PTP nonUSB devices.
+
+
+==================
+*What is libptp2?*
+==================
+
+This package contains libptp2, the library used to communicate with PTP
+devices like still imaging cameras or MP3 players (KODAK mc3).
+At the current stage if you want to download your pictures form your PTP
+camera all you need is libgphoto2 (which contains libptp2 code) and gphoto2
+frontent (visit http://www.gphoto.org). This package contains only the
+developers version of libptp2 and the ptpcam test program used for hacking
+PTP cameras.
 
 
 ===================

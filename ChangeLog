@@ -1,3 +1,7 @@
+2003-05-15 Mariusz Woloszyn
+	* .cvsignore: added _stdint.h to .cvsignore
+	* README: reorganized for stand alone release (still lacks ptpcam
+	  detailed description)
 2003-05-14 Mariusz Woloszyn
 	* started stand alone libptp2 1.0dev1; imported into libptp2 cvs;
 	  prepared for stand alone distribution (autoconf/automake
