@@ -1,5 +1,5 @@
-libptp2 (c)2001-2003 Mariusz Woloszyn <emsi@ipartners.pl>
-ptpcam  (c)2001-2003 Mariusz Woloszyn <emsi@ipartners.pl>
+libptp2 (c)2001-2004 Mariusz Woloszyn <emsi@ipartners.pl>
+ptpcam  (c)2001-2004 Mariusz Woloszyn <emsi@ipartners.pl>
 
 =====================
 *About this software*
@@ -56,6 +56,8 @@ supported! Most of USB cameras designed after 2002 are PTP or USB Mass
 Storage. In both cases the camera is supported under Linux!
 
 Below the list of cameras explicitly supported by gphoto2 ptp driver:
+(THIS TABLE IS OUTDATED!!! Maintaining the constantly growing list of
+supported cameras is harder than developing the driver ;)
 
 =============================================+
 Model			|Vendor ID|Product ID|
@@ -117,8 +119,6 @@ Canon PowerShot S230	| 0x04a9  |  0x3071  |
 Canon Digital IXUS v3	| 0x04a9  |  0x3071  |
 Canon PowerShot A70	| 0x04a9  |  0x3073  |
 ==============================================
-
-Above list might be outdated!
 
 Note that for some HP, Nikon, Canon and Sony cameras you have to switch
 them to PTP mode as in most cases the camera is dual mode:
@@ -705,6 +705,7 @@ according to PTP specification.
 * Camera abilities*
 ===================
 
+A couple of random camera abilities:
 
 0.048332 PTP/library.c(2): Device info:
 0.048347 PTP/library.c(2): Manufacturer: Nikon Corporation
