@@ -76,8 +76,7 @@
 #define CR(result,error) {						\
 			if((result)!=PTP_RC_OK) {			\
 				fprintf(stderr,"ERROR: "error);		\
-				usb_release_interface(ptp_usb.handle,	\
-		dev->config->interface->altsetting->bInterfaceNumber);	\
+				close_usb(&ptp_usb, dev);		\
 				return;					\
 			}						\
 }
@@ -347,6 +346,18 @@ init_ptp_usb (PTPParams* params, PTP_USB* ptp_usb, struct usb_device* dev)
 	}
 }
 
+void close_usb(PTP_USB* ptp_usb, struct usb_device* dev)
+{
+        usb_clear_halt(ptp_usb->handle,ptp_usb->inep);
+        usb_clear_halt(ptp_usb->handle,ptp_usb->outep);
+        usb_clear_halt(ptp_usb->handle,ptp_usb->intep);
+        usb_release_interface(ptp_usb->handle,
+                dev->config->interface->altsetting->bInterfaceNumber);
+        usb_close(ptp_usb->handle);
+
+}
+
+
 struct usb_bus*
 init_usb()
 {
@@ -481,8 +492,7 @@ list_devices(short force)
 
 			CC(ptp_closesession(&params),
 				"Could not close session!\n");
-			usb_release_interface(ptp_usb.handle,
-			dev->config->interface->altsetting->bInterfaceNumber);
+			close_usb(&ptp_usb, dev);
 		}
 	}
 	if (!found) printf("\nFound no PTP devices\n");
@@ -557,32 +567,187 @@ get_property_description(PTPParams* params, uint16_t dpc)
 		{PTP_DPC_CANON_BeepMode,	N_("CANON: Beep Mode")},
 		{PTP_DPC_CANON_UnixTime,	N_("CANON: Time measured in"
 						" secondssince 01-01-1970")},
-		{PTP_DPC_CANON_FlashMemory,	N_("CANON: Flash Card Capacity")},
+		{PTP_DPC_CANON_FlashMemory,
+					N_("CANON: Flash Card Capacity")},
 		{PTP_DPC_CANON_CameraModel,	N_("CANON: Camera Model")},
-
+		{0,NULL}
+	};
+/* Nikon Codes added by Corey Manders and Mehreen Chaudary */
+	struct {
+		uint16_t dpc;
+		const char *txt;
+	} ptp_device_properties_NIKON[] = {
+		{PTP_DPC_NIKON_ShootingBank,	N_("NIKON: Shooting Bank")},
+		{PTP_DPC_NIKON_ShootingBankNameA,
+					N_("NIKON: Shooting Bank Name A")},
+		{PTP_DPC_NIKON_ShootingBankNameB,
+					N_("NIKON: Shooting Bank Name B")},
+		{PTP_DPC_NIKON_ShootingBankNameC,
+					N_("NIKON: Shooting Bank Name C")},
+		{PTP_DPC_NIKON_ShootingBankNameD,
+					N_("NIKON: Shooting Bank Name D")},
+		{PTP_DPC_NIKON_RawCompression,	N_("NIKON: Raw Compression")},
+		{PTP_DPC_NIKON_WhiteBalanceAutoBias,
+					N_("NIKON: White Balance Auto Bias")},
+		{PTP_DPC_NIKON_WhiteBalanceTungstenBias,
+				N_("NIKON: White Balance Tungsten Bias")},
+		{PTP_DPC_NIKON_WhiteBalanceFlourescentBias,
+				N_("NIKON: White Balance Flourescent Bias")},
+		{PTP_DPC_NIKON_WhiteBalanceDaylightBias,
+				N_("NIKON: White Balance Daylight Bias")},
+		{PTP_DPC_NIKON_WhiteBalanceFlashBias,
+				N_("NIKON: White Balance Flash Bias")},
+		{PTP_DPC_NIKON_WhiteBalanceCloudyBias,
+				N_("NIKON: White Balance Cloudy Bias")},
+		{PTP_DPC_NIKON_WhiteBalanceShadeBias,
+				N_("NIKON: White Balance Shade Bias")},
+		{PTP_DPC_NIKON_WhiteBalanceColourTemperature,
+				N_("NIKON: White Balance Colour Temperature")},
+		{PTP_DPC_NIKON_ImageSharpening,
+				N_("NIKON: Image Sharpening")},
+		{PTP_DPC_NIKON_ToneCompensation,
+				N_("NIKON: Tone Compensation")},
+		{PTP_DPC_NIKON_ColourMode,	N_("NIKON: Colour Mode")},
+		{PTP_DPC_NIKON_HueAdjustment,	N_("NIKON: Hue Adjustment")},
+		{PTP_DPC_NIKON_NonCPULensDataFocalLength,
+				N_("NIKON: Non CPU Lens Data Focal Length")},
+		{PTP_DPC_NIKON_NonCPULensDataMaximumAperature,
+			N_("NIKON: Non CPU Lens Data Maximum Aperature")},
+		{PTP_DPC_NIKON_CSMMenuBankSelect,
+				N_("NIKON: CSM Menu Bank Select")},
+		{PTP_DPC_NIKON_MenuBankNameA,	N_("NIKON: Menu Bank Name A")},
+		{PTP_DPC_NIKON_MenuBankNameB,	N_("NIKON: Menu Bank Name B")},	
+		{PTP_DPC_NIKON_MenuBankNameC,	N_("NIKON: Menu Bank Name C")},
+		{PTP_DPC_NIKON_MenuBankNameD,	N_("NIKON: Menu Bank Name D")},
+		{PTP_DPC_NIKON_A1AFCModePriority,
+				N_("NIKON: (A1) AFC Mode Priority")},
+		{PTP_DPC_NIKON_A2AFSModePriority,
+				N_("NIKON: (A2) AFS Mode Priority")},
+		{PTP_DPC_NIKON_A3GroupDynamicAF,
+				N_("NIKON: (A3) Group Dynamic AF")},
+		{PTP_DPC_NIKON_A4AFActivation,		
+				N_("NIKON: (A4) AF Activation")},	
+		{PTP_DPC_NIKON_A5FocusAreaIllumManualFocus,
+			N_("NIKON: (A5) Focus Area Illum Manual Focus")},
+		{PTP_DPC_NIKON_FocusAreaIllumContinuous,
+				N_("NIKON: Focus Area Illum Continuous")},
+		{PTP_DPC_NIKON_FocusAreaIllumWhenSelected,
+				N_("NIKON: Focus Area Illum When Selected")},
+		{PTP_DPC_NIKON_A6FocusArea,	N_("NIKON: (A6) Focus Area")},
+		{PTP_DPC_NIKON_A7VerticalAFON,
+				N_("NIKON: (A7) Vertical AF ON")},
+		{PTP_DPC_NIKON_B1ISOAuto,	N_("NIKON: (B1) ISO Auto")},
+		{PTP_DPC_NIKON_B2ISOStep,	N_("NIKON: (B2)	ISO Step")},
+		{PTP_DPC_NIKON_B3EVStep,	N_("NIKON: (B3) EV Step")},
+		{PTP_DPC_NIKON_B4ExposureCompEv,
+				N_("NIKON: (B4) Exposure Comp Ev")},
+		{PTP_DPC_NIKON_B5ExposureComp,
+				N_("NIKON: (B5) Exposure Comp")},
+		{PTP_DPC_NIKON_B6CenterWeightArea,
+				N_("NIKON: (B6) Center Weight Area")},
+		{PTP_DPC_NIKON_C1AELock,	N_("NIKON: (C1) AE Lock")},
+		{PTP_DPC_NIKON_C2AELAFL,	N_("NIKON: (C2) AE_L/AF_L")},
+		{PTP_DPC_NIKON_C3AutoMeterOff,
+				N_("NIKON: (C3) Auto Meter Off")},
+		{PTP_DPC_NIKON_C4SelfTimer,	N_("NIKON: (C4) Self Timer")},	
+		{PTP_DPC_NIKON_C5MonitorOff,	N_("NIKON: (C5) Monitor Off")},
+		{PTP_DPC_NIKON_D1ShootingSpeed,
+				N_("NIKON: (D1) Shooting Speed")},
+		{PTP_DPC_NIKON_D2MaximumShots,
+				N_("NIKON: (D2) Maximum Shots")},
+		{PTP_DPC_NIKON_D3ExpDelayMode,	N_("NIKON: (D3) ExpDelayMode")},	
+		{PTP_DPC_NIKON_D4LongExposureNoiseReduction,
+			N_("NIKON: (D4) Long Exposure Noise Reduction")},
+		{PTP_DPC_NIKON_D5FileNumberSequence,
+				N_("NIKON: (D5) File Number Sequence")},
+		{PTP_DPC_NIKON_D6ControlPanelFinderRearControl,
+			N_("NIKON: (D6) Control Panel Finder Rear Control")},
+		{PTP_DPC_NIKON_ControlPanelFinderViewfinder,
+				N_("NIKON: Control Panel Finder Viewfinder")},
+		{PTP_DPC_NIKON_D7Illumination,	N_("NIKON: (D7) Illumination")},
+		{PTP_DPC_NIKON_E1FlashSyncSpeed,
+				N_("NIKON: (E1) Flash Sync Speed")},
+		{PTP_DPC_NIKON_E2FlashShutterSpeed,
+				N_("NIKON: (E2) Flash Shutter Speed")},
+		{PTP_DPC_NIKON_E3AAFlashMode,
+				N_("NIKON: (E3) AA Flash Mode")},
+		{PTP_DPC_NIKON_E4ModelingFlash,	
+				N_("NIKON: (E4) Modeling Flash")},
+		{PTP_DPC_NIKON_E5AutoBracketySet,
+				N_("NIKON: (E5) Auto Brackety Set")},
+		{PTP_DPC_NIKON_E6ManualModeBracketing,
+				N_("NIKON: (E6) Manual Mode Bracketing")},
+		{PTP_DPC_NIKON_E7AutoBracketOrder,
+				N_("NIKON: (E7) Auto Bracket Order")},
+		{PTP_DPC_NIKON_E8AutoBracketSelection,
+				N_("NIKON: (E8) Auto Bracket Selection")},
+		{PTP_DPC_NIKON_F1CenterButtonShootingMode,
+				N_("NIKON: (F1) Center Button Shooting Mode")},
+		{PTP_DPC_NIKON_CenterButtonPlaybackMode,
+				N_("NIKON: Center Button Playback Mode")},
+		{PTP_DPC_NIKON_F2Multiselector,
+				N_("NIKON: (F2) Multiselector")},
+		{PTP_DPC_NIKON_F3PhotoInfoPlayback,
+				N_("NIKON: (F3) PhotoInfoPlayback")},	
+		{PTP_DPC_NIKON_F4AssignFuncButton,
+				N_("NIKON: (F4) Assign Function Button")},
+		{PTP_DPC_NIKON_F5CustomizeCommDials,
+				N_("NIKON: (F5) Customize Comm Dials")},
+		{PTP_DPC_NIKON_ChangeMainSub,	N_("NIKON: Change Main Sub")},
+		{PTP_DPC_NIKON_AperatureSetting,
+				N_("NIKON: Aperature Setting")},
+		{PTP_DPC_NIKON_MenusAndPlayback,
+				N_("NIKON: Menus and Playback")},
+		{PTP_DPC_NIKON_F6ButtonsAndDials,
+				N_("NIKON: (F6) Buttons and Dials")},
+		{PTP_DPC_NIKON_F7NoCFCard,	N_("NIKON: (F7) No CF Card")},
+		{PTP_DPC_NIKON_AutoImageRotation,
+				N_("NIKON: Auto Image Rotation")},
+		{PTP_DPC_NIKON_ExposureBracketingOnOff,
+				N_("NIKON: Exposure Bracketing On Off")},
+		{PTP_DPC_NIKON_ExposureBracketingIntervalDist,
+			N_("NIKON: Exposure Bracketing Interval Distance")},
+		{PTP_DPC_NIKON_ExposureBracketingNumBracketPlace,
+			N_("NIKON: Exposure Bracketing Number Bracket Place")},
+		{PTP_DPC_NIKON_AutofocusLCDTopMode2,
+				N_("NIKON: Autofocus LCD Top Mode 2")},
+		{PTP_DPC_NIKON_AutofocusLCDTopMode3AndMode4,
+			N_("NIKON: Autofocus LCD Top Mode 3 and Mode 4")},
+		{PTP_DPC_NIKON_LightMeter,	N_("NIKON: Light Meter")},
+		{PTP_DPC_NIKON_ExposureAperatureLock(Read Only),
+			N_("NIKON: Exposure Aperature Lock (Read Only)")},
+		{PTP_DPC_NIKON_MaximumShots,	N_("NIKON: Maxium Shots")},	
 		{0,NULL}
 	};
 
 	if (dpc|PTP_DPC_EXTENSION_MASK==PTP_DPC_EXTENSION)
 	switch (params->deviceinfo.VendorExtensionID) {
 		case PTP_VENDOR_EASTMAN_KODAK:
-		for (i=0; ptp_device_properties_EK[i].txt!=NULL; i++)
-			if (ptp_device_properties_EK[i].dpc==dpc)
-				return (ptp_device_properties_EK[i].txt);
-		break;
+			for (i=0; ptp_device_properties_EK[i].txt!=NULL; i++)
+				if (ptp_device_properties_EK[i].dpc==dpc)
+					return (ptp_device_properties_EK[i].txt);
+			break;
 
 		case PTP_VENDOR_CANON:
-		for (i=0; ptp_device_properties_CANON[i].txt!=NULL; i++)
-			if (ptp_device_properties_CANON[i].dpc==dpc)
-				return (ptp_device_properties_CANON[i].txt);
-		break;
-	}
+			for (i=0; ptp_device_properties_CANON[i].txt!=NULL; i++)
+				if (ptp_device_properties_CANON[i].dpc==dpc)
+					return (ptp_device_properties_CANON[i].txt);
+			break;
+		case PTP_VENDOR_NIKON:
+			for (i=0; ptp_device_properties_NIKON[i].txt!=NULL; i++)
+				if (ptp_device_properties_NIKON[i].dpc==dpc)
+					return (ptp_device_properties_NIKON[i].txt);
+			break;
+	
+
+		}
 	for (i=0; ptp_device_properties[i].txt!=NULL; i++)
 		if (ptp_device_properties[i].dpc==dpc)
 			return (ptp_device_properties[i].txt);
 
 	return NULL;
 }
+
 
 void
 list_properties (int busn, int devn, short force)
@@ -624,8 +789,7 @@ list_properties (int busn, int devn, short force)
 					DevicePropertiesSupported[i]);
 	}
 	CR(ptp_closesession(&params), "Could not close session!\n");
-	usb_release_interface(ptp_usb.handle,
-		dev->config->interface->altsetting->bInterfaceNumber);
+	close_usb(&ptp_usb, dev);
 }
 
 short
@@ -802,8 +966,7 @@ getset_property (int busn,int devn,uint16_t property,char* value,short force)
 	ptp_free_devicepropdesc(&dpd);
 	CR(ptp_closesession(&params), "Could not close session!\n"
 	"Try to reset the camera.\n");
-	usb_release_interface(ptp_usb.handle,
-		dev->config->interface->altsetting->bInterfaceNumber);
+	close_usb(&ptp_usb, dev);
 }
 
 int
@@ -923,8 +1086,7 @@ reset_device (int busn, int devn, short force)
 	// get device status (devices likes that regardless of its result)
 	usb_ptp_get_device_status(&ptp_usb,devstatus);
 
-	usb_release_interface(ptp_usb.handle,
-		dev->config->interface->altsetting->bInterfaceNumber);
+	close_usb(&ptp_usb, dev);
 }
 
 /* main program  */
