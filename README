@@ -25,22 +25,26 @@ software.
 *Requirements*
 ==============
 
-Currently this package requires libusb to build ptpcam. The library itself
-is transport independent and does not require libusb, however no other
-transport layer has been tested due to lack of PTP nonUSB devices.
+Currently this package requires libusb to build ptpcam.
+The libptp2 library itself is transport independent and does not require
+libusb, however no other transport layer has been tested due to lack
+of PTP nonUSB devices.
+You can obtain libusb at http://libusb.sf.net/
+If you want to build this library (for test purposes) on a box without
+libusb pass --without-ptpcam option to configure script.
 
 
 ==================
 *What is libptp2?*
 ==================
 
-This package contains libptp2, the library used to communicate with PTP
-devices like still imaging cameras or MP3 players (KODAK mc3).
+libptp2 is a library used to communicate with PTP devices like still
+imaging cameras or MP3 players (KODAK mc3).
 At the current stage if you want to download your pictures form your PTP
 camera all you need is libgphoto2 (which contains libptp2 code) and gphoto2
 frontent (visit http://www.gphoto.org). This package contains only the
-developers version of libptp2 and the ptpcam test program used for hacking
-PTP cameras.
+developers version of libptp2 and the ptpcam program used for tweaking
+PTP camera properties.
 
 
 ===================
@@ -113,15 +117,65 @@ Above list might be outdated!
 
 Note that for some HP, Nikon, Canon and Sony cameras you have to switch
 them to PTP mode as in most cases the camera is dual mode:
-PTP and USB Mass Storage.
+PTP and USB Mass Storage or PTP and native.
 For some cameras it even changes the Product ID number, so don't panic if
 it does not match the one listed above, just switch the mode.
 Don't ask me how to do it. Refer to camera documentation.
 
-If you know that your camera might be a PTP one, you may test it
-against this code even if it's not on the list above. If it's really in
-PTP mode, the USB interface class should be set to 6 (it's called "still").
-You may check this by reading /proc/bus/usb/devices, for example:
+
+=============
+*Quick Start*
+=============
+
+First of all you need kernel USB support. Please refer to your OS
+documentation for more info!
+For Linux users you need "Preliminary USB device filesystem" and "USB Host
+Controller" (the one for your hardware: EHCI, OHCI or UHCI) support in your
+kernel.
+BTW: there was a bug in Linux Kernel 2.4.18 UHCI driver so make sure you use
+more recent kernel!
+If you got a kernel support make sure that your usbdevfs is mounted under
+/proc/bus/usb. In my case the fstab entry looks like this:
+
+usb     /proc/bus/usb   usbdevfs        defaults,user 0 0
+
+(NO, the entry in fstab isn't enough, you have to type: mount /proc/bus/usb)
+If you want to run ptpcam as regular user read this:
+http://gphoto.sourceforge.net/doc/manual/permissions-usb.html
+although I suggest performing all tests as root unless you're security
+paranoid.
+
+If you have a PTP camera connected to your computer it should be detected by
+invoking "ptpcam --list-devices".
+In my case the output looks like this:
+
+root@emsi(chroot):~# ptpcam --list-devices
+Listing devices...
+bus/dev vendorID/prodID device model
+002/035 0x040A/0x0400   Kodak mc3
+002/036 0x040A/0x0500   DX3500 Digital Camera
+001/027 0x040A/0x0160   DC4800 Zoom Digital Camera
+
+If you get something like this:
+
+emsi@emsi(chroot):~> ptpcam --list-devices
+Listing devices...
+bus/dev vendorID/prodID device model
+ERROR: Could not open session!
+Try to reset the camera.
+
+it means that you did not read carefully what I wrote above about running
+ptpcam as regular user or your camera has stalled (needs reset).
+
+If you need some more debug try --verbose or --verbose=2 thus increasing the
+vrbose level.
+
+What if you get get "Found no PTP devices"?
+If you're sure that your camera is a PTP camera please check your OS usb
+config. In case of Linux make sure that you have usbdevfs mounted under
+/proc/bus/usb. If so read the output of cat /proc/bus/usb/devices and check
+if your camera is listed there.
+It might be that your camera is not in PTP mode. To verify so issue:
 
 cat /proc/bus/usb/devices | grep "Cls=06"
 
@@ -129,53 +183,515 @@ If you find something like this:
 
 I:  If#= 0 Alt= 0 #EPs= 3 Cls=06(still) Sub=01 Prot=01 Driver=(none)
                           ^^^^^^^^^^^^^
-that means that your camera is a PTP one.
-The ptp driver should detect that camera by interface class as "USB PTP
-Class Camera" and allow downloading the pictures and do other stuff exactly
-the same way as if it would be detected by product and vendor ID.
+that means that your camera is in PTP mode and should be detected.
+If there is no interface of Class 6 refer to camera documentation to find
+how to switch it into PTP more.
 
-If you're not Linux user try compiling ptpcam (if you have the source
-tarball of libgphoto2 ptpcam is build automaticaly camlibs/ptp2 folder).
+You may also try to use --force option while listing cameras or talking to
+it, but don't use it unless you really know what you are doing!!!
+--force forces ptpcam to talk to non PTP devices (which makes sense only in
+case of PTP device with interface class other than 6 (PTP), like Kodak DC240
+with PTP firmware). BE AWARE that talking PTPish to non PTP devices may
+cause harmful damage!!!
 
-ptpcam --list-devices will search through all usb devices looking for a
-PTP one.
+
+============
+*What next?*
+============
+
+I guess that you'd like to tweak camera properties? ;)
+Use "ptpcam --list-properties" to list all available camera properties.
+Unfortunately if you have bought a high-end camera or a very expensive PTP
+camera it DOES NOT mean that it supports setting any properties. The problem
+is that manufacturers do not specify in documentation what properties or
+operations are supported by the given camera. In most cases you never know
+until you buy the camera. [I'll try to provide a list of supported camera
+properties and operations on libptp.sf.net]
+If ptpcam detects more than one camera you need to pass --bus=BUS-NUMBER and,
+or --dev=DEV-NUMBER arguments otherwise ptpcam tries to talk to first detected
+camera. If you specify only bus or dev number ptpcam talks to first matching
+camera.
+
+Let's say that you get  something like this:
+
+root@emsi(chroot):~# ptpcam --list-properties
+Listing properties...
+Quering: DX3500 Digital Camera
+0x5001 : Battery Level
+
+It means that your camera (in this case DX3500 Digital Camera) supports only
+one property, which is "Battery Level" (property number 0x5001). Not much,
+but you still can try to list its value:
+
+root@emsi(chroot):~# ptpcam --show-property=5001
+Camera: DX3500 Digital Camera
+Property 'Battery Level'
+Data type is 0x0002
+Current value is 100
+Factory default value is 100
+The property is read only, enumerated. Allowed values are:
+0
+10
+100
+
+As you can see --show-property argument does not require 0x, that's for your
+convenience. ;)
+The output of this command is quite verbosive. It tells you about the Data
+type (in this case 0x0002 means UINT8, if you want to know what are those
+numbers read ptp.h and look for PTP_DTC_* defines), current value, factory
+default value and the property type. The property type may vary among
+different cameras! In this camera 'Battery Level' is read only and
+enumerated. Allowed values are 0, 10 and 100 which (more or less) means:
+0 - low battery lever (may shut down immediately), 10 - medium battery
+level, 100 - full battery level. However for a different camera this
+property may be defined as range of 1 to 100 with step of 1.
+That's just an example.
+
+Now let's look at the list of properties of another camera:
+
+root@emsi(chroot):~# ptpcam --list-properties
+Listing properties...
+Quering: DC4800 Zoom Digital Camera
+0x5001 : Battery Level
+0x5003 : Image Size
+0x5004 : Compression Setting
+0x5005 : White Balance
+0x5006 : RGB Gain
+0x5007 : F-Number
+0x5008 : Focal Length
+0x5009 : Focus Distance
+0x500a : Focus Mode
+0x500b : Exposure Metering Mode
+0x500c : Flash Mode
+0x500d : Exposure Time
+0x500e : Exposure Program Mode
+0x500f : Exposure Index (film speed ISO)
+0x5010 : Exposure Bias Compensation
+0x5011 : Date Time
+0x5013 : Still Capture Mode
+0x5015 : Sharpness
+0x5016 : Digital Zoom
+0x5017 : Effect Mode
+0x5018 : Burst Number
+0x501c : Focus Metering Mode
+0xd001 : EK Color Temperature
+0xd002 : EK Date Time Stamp Format
+0xd003 : EK Beep Mode
+0xd004 : EK Video Out
+0xd005 : EK Power Saving
+0xd006 : EK UI Language
+
+All properties of numbers starting with 0x50 are standard PTP properies,
+although for many of them the type (enumerated or range) and value meaning
+are NOT specified by the PTP standard and may vary among different cameras!
+The properties starting with 0xd0 are PTP extension (in this case EK means
+Eastman Kodak extension) and in most cases are not known to public at all.
+In most cases you will have to reverse enineer their meaning (I'm eager to
+receive a feedback from you in such case! ;).
 
 
-================================
-*Solving and reporting problems*
-================================
+==========================
+* Setting property values*
+==========================
 
-To solve the problem stick to gphoto2 CLI, forget about the GUI now.
-Use gphoto2 -L to see if it detects the camera.
+For example if you'd like to change the 'Image Size' property you have to do
+that in two steps. First display the property using --show-property switch.
+Determine whether the property is settable, what is the type o a value
+(a number or string) and which values are supported!
+Keep in mind that some properties are settable only in certain camera
+states or modes. Also the valid values may vary depending on current camera
+state!
+OK. Let's get back to our example. To display the property 'Image Size',
+which numer is 0x5003 you have to type:
 
-If you see something like this:
+root@emsi(chroot):~# ptpcam --show-property=5003
+Camera: DC4800 Zoom Digital Camera
+Property 'Image Size'
+Data type is 0xffff
+Current value is "2160x1440"
+Factory default value is "2160x1440"
+The property is settable, enumerated. Allowed values are:
+"2160x1440"
+"1800x1200"
+"1536x1024"
+"1080x720"
 
-~> gphoto2 -L
-Unable to get descriptor (-1)                                                   
-(... lot of other errors ...)
+You can see that this camera supports four different image sizes. The
+property value is a string (values are printen within wuotation marks).
+To change the 'Image Size' pass --val=VALUE option to ptpcam while still
+specifying the property with --set-property=PROPERTY_NUMBER.
+Note that only certain values are allowed.
 
-it may mean that you're working as user while the usb access is restricted.
-See gphoto2-manual, section "Setting up your system for use with libgphoto2
-and gphoto2", subsection "Setting up permissions for USB ports"
-(http://gphoto.sourceforge.net/doc/manual/permissions-usb.html).
+In our example let it look like this:
 
-If the gphoto2 detects the camera but then fails with some error messages
-please report the bug sending the mail to gphoto-devel@gphoto.org or
-directly to me at: emsi@emsi.it.pl.
-The mail should contain the full output of gphoto2 -L --debug with locale
-language set to _ENGLISH_.
-For example in bash do:
-env LANG=C gphoto2 --debug -L
-tcsh/csh:
-setenv LANG C; gphoto2 --debug -L
+root@emsi(chroot):~# ptpcam --set-property=5003 --val=1080x720
+Camera: DC4800 Zoom Digital Camera
+Property 'Image Size'
+Data type is 0xffff
+Current value is "2160x1440"
+Factory default value is "2160x1440"
+The property is settable, enumerated. Allowed values are:
+"2160x1440"
+"1800x1200"
+"1536x1024"
+"1080x720"
+Setting proprty value to '1080x720'
 
-WARGING!!! Before sending any mail make sure you read the notes in
-"Supported Cameras" above.
+If everything goes OK no error is displayed. Of course you may verify if the
+property value was properly.
+If you get something like this:
 
-Enjoy!
+PTP: Invalid Device Prop Value
 
-=============
-Documentation
+It indicates that the property value was not set due to invalid values.
 
-While ptp transactions usage seems to be quite obvious the ptp events
-handling code should be documented.
+Keep in mind that in most cases changing one property may cause another one
+property to change! That happens specially in any Atomated modes!!!
+
+FIXME: The device should report that another property was changed issuing
+DevicePropChanged event! We may catch that and report to user.
+
+=================
+*Common problems*
+=================
+
+Sometimes it might happen that the device claims to support given property
+but does not respond to --show-property request. In most cases it's because of
+inpropert PTP implementation on the camera side.
+Moreover given property may not have any meaning in a certain camera state.
+For example setting or getting 'Focus Distance' property may not be allowed
+in automated camera mode! Is such case try to switch the camera to manual
+mode.
+For example my Kodak DC4800 fails over --show-property=5006
+(which is "RGB Gain") if RGB Gain is not set. It looks like this:
+
+root@emsi(chroot):~# ptpcam --show-property=5006
+Camera: DC4800 Zoom Digital Camera
+Property 'RGB Gain'
+ERROR: Could not get device property description!
+Try to reset the camera.
+
+In such a case you need to isse a --reset request to the camera:
+
+root@emsi(chroot):~emsi/cvs/libptp2-1.0pre3# ptpcam --reset
+Resetting input pipe!
+Device status OK
+
+It's a good practice to verify whether the reset went OK issuing
+--list-devices. Sometimes one or two more reset may be needed to properly
+reset the camera.
+
+
+=========================
+*Standard PTP Properties*
+=========================
+
+
+Below I am providing a short list of properties and their meaning values
+according to PTP specification.
+
+0x5001 : Battery Level
+	 DataType: UINT8
+	 Forms: Enum, Range
+	 PTP standard does not define any special values, however for number
+	 of Kodak devices 0 means no power (alternative power source), 10
+	 means medium battery lever and 100 means full battery.
+
+0x5002 : Functional Mode
+	 DataType: UINT16
+	 Forms: Enum
+	 This property indicates whether the device is in an alternate mode
+	 that provides a different set of cpabilities (i.e. supported
+	 operations, properties, events, etc.). If the device only supports
+	 one mode, this value should always be zero.
+	 PTP standard specifies following values:
+	 0x0000 - Standard Mode
+	 0x0001 - Sleep State
+	 All other values with bit 15 set to 0 are Reserved.
+	 All values with bit 15 set to 1 are Vendor Specific.
+
+0x5003 : Image Size
+	 DataType: String
+	 Forms: Enum, Range
+	 this property describes the height and width of the image that will
+	 be captured in pixels supported by the device. The string is of the
+	 romat "WxH" where the W represents the width and the H represents
+	 the height represented as unsigned integers.
+
+0x5004 : Compression Setting
+	 DataType: UINT8
+	 Forms: Enum, Range
+	 Quoted from PTP (PIMA 15740) specs:
+	 "Compression setting is a property intended to be as close as is
+	 possible to being linear with respect to perceived image quality
+	 over a broad range of scene content, and is represented by either a
+	 range or an enumeration of integers. Low integers are used to
+	 represent low quality (i.e. maximum compression) while high
+	 integers are used to represent high quality (i.e. minimum
+	 compression). No attempt is made in this standard (PTP) to assign
+	 specific values of this property with any absolute benchmark, so
+	 any available settings on a device are relative to that device only
+	 and are therefore device-specific."
+
+0x5005 : White Balance
+	 DataType: UINT16
+	 Forms: Enum
+	 PTP standard specifies following values:
+	 0x0000 - Undefined
+	 0x0001 - Manual
+	 0x0002 - Automatic
+	 0x0003 - One-push Automatic
+	 0x0004 - Daylight
+	 0x0005 - Florescent
+	 0x0006 - Tungsten
+	 0x0007 - Flash
+	 All other values with bit 15 set to zero are reserved.
+	 All values with bit 15 set to 1 are vendor-defined.
+
+	 Manual means that white balance is set directly using the RGB Bain
+	 (0x5006) property.
+	 Automatic indicates that the device sets this property using some
+	 king of automatic mechanism.
+	 One-push Automatic means that the user must press the capture
+	 button while pointing objective at a white field, at which time the
+	 device determines the white balance setting.
+	 Daylight means that the device sets the white balance to a value
+	 that is suitable for daylight use.
+	 Tungsten means that the device sets the white balance to a value
+	 that is suitable for use with a tungsten light source.
+	 Flash means that the white balance is set to a value that is
+	 suitable for flash conditions.
+
+0x5006 : RGB Gain
+	 DataType: String
+	 Forms: Enum, Range
+	 This property takes the form of a string that is parsed as follows:
+	 "R:G:B" where the R represents the red gain, the G represents the
+	 green gain, and the B represents the blue gain. For example, for
+	 an RGB ratio of red=2, green=3 and blue=4, the RGB string could be
+	 "2:3:4" or "200:300:400". Each part of the RGB string is in decimal
+	 form of UINT16 integer.
+
+0x5007 : F-Number
+	 DataType: UINT16
+	 Forms: Enum
+	 This property represents the aperture of the lens. The units are
+	 equal to the F-Number scaled by 100.
+	 Example values are: 280 (2.8), 560 (5.6), 800 (8), etc.
+
+0x5008 : Focal Length
+	 DataType: UINT32
+	 Forms: Enum, Range
+	 This property represents the 35mm equivalent focal length. The
+	 units are equal to focal length in millimeters multipied by 100.
+
+0x5009 : Focus Distance
+	 DataType: UINT16
+	 Forms: Enum, Range
+	 Value of this property represents the focus distance in
+	 millimeters. A value of 0xFFFF means infinity.
+
+0x500a : Focus Mode
+	 DataType: UINT16
+	 Forms: Ensum
+	 PTP standard specifies following values:
+	 0x0000 - Undefined
+	 0x0001 - Manual
+	 0x0002 - Automatic
+	 0x0003 - Automatic Macro (close-up)
+	 All other values with bit 15 set to zero are reserver.
+	 All values vith bit 15 set to 1 are vendor-defined.
+
+0x500b : Exposure Metering Mode
+	 DataType: UINT16
+	 Forms: Enum
+	 PTP standard specifies following values:
+	 0x0000 - Undefined
+	 0x0001 - Average
+	 0x0002 - Center-weighted-average
+	 0x0003 - Multi-spot
+	 0x0004 - Center-spot
+	 All other values with bit 15 set to zero are reserver.
+	 All values vith bit 15 set to 1 are vendor-defined.
+
+0x500c : Flash Mode
+	 DataType: UINT16
+	 Forms: Enum
+	 PTP standard specifies following values:
+	 0x0000 - Undefined
+	 0x0001 - Auto flash
+	 0x0002 - Flash off
+	 0x0003 - Fill flash
+	 0x0004 - Red eye auto
+	 0x0005 - Red eye fill
+	 0x0006 - External flash
+	 All other values with bit 15 set to zero are reserver.
+	 All values vith bit 15 set to 1 are vendor-defined.
+
+0x500d : Exposure Time
+	 DataType: UINT32
+	 Forms: Enum, Range
+	 This property represents the shutter speed. It has units of seconds
+	 scaled by 10000.
+	 For example:
+	 40 means 1/250 sec.
+	 80 means 1/125 sec.
+	 160 means 1/62.5 sec. and so on.
+
+0x500e : Exposure Program Mode
+	 DataType: UINT16
+	 Forms: Enum
+	 PTP standard specifies following values:
+	 0x0000 - Undefined
+	 0x0001 - Manual
+	 0x0002 - Automatic
+	 0x0003 - Aperture Priority
+	 0x0004 - Shutter Priority
+	 0x0005 - Program Creative (greater depth of field)
+	 0x0006 - Program Action (faster shutter speed)
+	 0x0007 - Portrait
+	 All other values with bit 15 set to zero are reserver.
+	 All values vith bit 15 set to 1 are vendor-defined.
+
+0x500f : Exposure Index (film speed ISO)
+	 DataType: UINT16
+	 Forms: Enum, Range
+	 Value of this property represents the emulation of film speed
+	 setting. The setting correspons to the ISO designations. A value of
+	 0xFFFF means automatic ISO setting.
+
+0x5010 : Exposure Bias Compensation
+	 DataType: INT16
+	 Forms: Enum, Range
+	 Value of this property represents the exposure compensation. The
+	 units are in "stops" scaled by 1000. The setting values are in
+	 APEX.
+	 For example the value of -2000 (means 4X less energy on sensor)
+	 two stops less exposure (darker image). The value of 1500 means
+	 one and a half stops more exposure (2.25X more energy on sensors).
+
+0x5011 : Date Time
+	 DataType: String
+	 Forms: none
+	 Value of this property represents the device date and time in ISO
+	 8601 format. It's a string of "YYYYMMDDThhmmss.s", where YYYY
+	 represents the year, MM represents the month (01-12), DD is the day
+	 of the mont (01-31), T is a constant character, hh represents the
+	 hour since midnight (00-23), mm is the minutes (00-59) past the
+	 hour and ss.s is the seconds past the minute, with the ".s" being
+	 optional tenth of second past the second. The string can be
+	 optionally appended with Z to indicate UTC, or +/-hhmm to indicate
+	 the time is relative to a time zone.
+	 
+0x5012 : Pre-Capture Delay
+	 DataType: UINT32
+	 Forms: Enum, Range
+	 Value of this property represents the ammount of time delay that
+	 should be inserted between the capture trigger and the initiation
+	 of the data capture. This value shall be interpreted as
+	 milliseconds. 
+	 It has nothing to do with the "0x5019 : Burst Interval" and the
+	 "0x501b : Timelapse Interval"!
+
+0x5013 : Still Capture Mode
+	 DataType: UINT16
+	 Forms: Enum
+	 PTP standard specifies following values:
+	 0x0000 - Undefined
+	 0x0001 - Normal
+	 0x0002 - Burst
+	 0x0003 - Timelapse
+	 All other values with bit 15 set to zero are reserver.
+	 All values vith bit 15 set to 1 are vendor-defined.
+
+0x5014 : Contrast
+	 DataType: UINT8
+	 Forms: Enum, Range
+	 Value of this property represents the contrast of a captured image.
+	 The minimum supported value is used to represent the least
+	 contrast, while the maximum value represents the most contrast.
+
+0x5015 : Sharpness
+	 DataTyep: UINT8
+	 Forms: Enum, Range
+	 Value of this property represents the sharpness of a captured
+	 image. The minimum value is used to represent the least amount of
+	 sharpness, while the maximum value represents highest sharpness.
+
+0x5016 : Digital Zoom
+	 DataType: UINT8
+	 Forms: Enum, Range
+	 Value of this property represents the effective zoom ratio of
+	 digital camera's acquired image scaled by a factor of 10.
+	 No digital zoom (1) represents the value of 10. The minimum value
+	 represents minimum digital zoom (no digital zoom), typically
+	 10, while the maximum value represents the maximum digital zoom.
+
+0x5017 : Effect Mode
+	 DataType: UINT16
+	 Forms: Enum
+	 PTP standard specifies following values:
+	 0x0000 - Undefined
+	 0x0001 - Standard (color)
+	 0x0002 - Black & White
+	 0x0003 - Sepia
+	 All other values with bit 15 set to zero are reserver.
+	 All values vith bit 15 set to 1 are vendor-defined.
+
+0x5018 : Burst Number
+	 DataType: UINT16
+	 Forms: Enum, Range
+	 Value of this property specifies the number of images that the
+	 device will attempt to capture upon initiation of a burst capture.
+
+0x5019 : Burst Interval
+	 Data Type: UINT16
+	 Forms: Enum, Range
+	 Value of this property represents the delay between captures upon
+	 initialization of a burst captures. This value is expressed in
+	 milliseconds.
+
+0x501a : Timelapse Number
+	 DataType: UINT16
+	 Forms: Enum, Range
+	 Value of this property represents the number of images that the
+	 device will attempt to capture upon initiation of a time-lapse
+	 capture.
+
+0x501b : Timelapse Interval
+	 DataType: UINT32
+	 Forms: Enum, Range
+	 Value of this property represents the delay between captures upon
+	 initialization of a time-lapse capture. This value is expressed in
+	 milliseconds
+
+0x501c : Focus Metering Mode
+	 DataType: UINT16
+	 Forms: Enum
+	 PTP standard specifies following values:
+	 0x0000 - Undefined
+	 0x0001 - Center-spot
+	 0x0002 - Multi-spot
+	 All other values with bit 15 set to zero are reserver.
+	 All values vith bit 15 set to 1 are vendor-defined.
+
+0x501d : UploadURL
+	 DataType: String
+	 Forms: none
+	 This property describes the URL that the receiver may use to upload
+	 images.
+
+0x501e : Artist
+	 DataType: string
+	 Forms: none
+	 The name of the author of pictures.
+	 This property is intended to populate the Artist field of an EXIF
+	 images.
+
+0x501f : Copyright
+	 DataType: string
+	 Forms: none
+	 Copyright noyfication.
+	 This property is intended to populate the Copyright field of an
+	 EXIF images.
+
