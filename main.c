@@ -31,7 +31,7 @@ int
 ptp_read (char* req, unsigned int size, void *data); 
 int
 ptp_write (char* req, unsigned int size, void *data); 
-//void error(char *x,...);
+void error(PTPParams *params, char *x,...);
 
 
 query (usb_dev_handle* handle) {
@@ -43,7 +43,7 @@ query (usb_dev_handle* handle) {
 
 	ptp_params->write_func = ptp_write;
 	ptp_params->read_func = ptp_read;
-	ptp_params->error_func=NULL;
+	ptp_params->error_func=error;
 	ptp_params->data=&ptp_usb;
 	ptp_params->transaction_id=1;
 
@@ -66,13 +66,13 @@ query (usb_dev_handle* handle) {
 		ptp_objectinfo=malloc(sizeof(PTPObjectInfo));
 		ptp_getobjectinfo(ptp_params, ptp_objecthandles, i, ptp_objectinfo);
 
-		object=malloc(ptp_objectinfo->ObjectCompressedSize+PTP_REQ_HDR_LEN);
+		object=malloc(ptp_objectinfo->ObjectCompressedSize);
 		ret=ptp_getobject(ptp_params, ptp_objecthandles,
 			ptp_objectinfo, i, object);
 		if (ret=PTP_RC_OK) printf("OBJECT GET OK!!!\n"); else exit(-1);
 		sprintf(filename,"image%i.jpg",i);
 		file=open(filename, O_WRONLY|O_CREAT|O_TRUNC,S_IRWXU|S_IRGRP);
-		write(file, object+PTP_REQ_HDR_LEN, 
+		write(file, object, 
 		ptp_objectinfo->ObjectCompressedSize);
 		close(file);
 		free(object);
@@ -154,7 +154,7 @@ ptp_write (char *req, unsigned int size, void *data)
 	return PTP_RC_OK;
 }
 
-void error(char *x,...) {
+void error(PTPParams *params, char *x,...) {
 	char mesg[4096];
 	va_list ap;
 
