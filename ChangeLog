@@ -1,3 +1,7 @@
+2003-06-09 Mariusz Woloszyn
+	* Makefile.am: added DISTCLEANFILES to distclean _stdint.h 
+	  & libptp-endian.h; defined libptp2 includes dir and files
+	* configure.in: reorganized library versioning system
 2003-05-28 Mariusz Woloszyn
 	* ptp.h: two more CANON properties (thanks to Jean-Nicolas Kuttler)
 	* ptpcam.c: two more CANON properties (thanks to Jean-Nicolas Kuttler)

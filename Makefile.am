@@ -5,6 +5,11 @@ lib_LTLIBRARIES = libptp2.la
 libptp2_la_SOURCES = ptp.c ptp.h
 libptp2_la_LDFLAGS = -version-info @LIBPTP2_VERSION_INFO@
 
+libptp2includedir = $(includedir)/libptp2
+libptp2include_HEADERS = ptp.h libptp-endian.h _stdint.h
+
+DISTCLEANFILES = _stdint.h libptp-endian.h
+
 if PTPCAM
 bin_PROGRAMS = ptpcam
 ptpcam_SOURCES = ptpcam.c

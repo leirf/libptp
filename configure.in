@@ -1,17 +1,26 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT([libptp2],[1.0pre3],[emsi@ipartners.pl])
-AM_INIT_AUTOMAKE(libptp2, 1.0pre3)
+AC_INIT([libptp2],[1.0pre4],[emsi@ipartners.pl])
+AM_INIT_AUTOMAKE(libptp2, 1.0pre4)
 AC_PREREQ(2.53)
 AM_CONFIG_HEADER([config.h])
 AC_PROG_LIBTOOL
 
 # library versioning
-# change micro every change is made, change minor every interface change,
-# change major on huge changes, code rewrite or huge interface change
-LIBPTP2_VERSION_MAJOR=1
-LIBPTP2_VERSION_MINOR=0
-LIBPTP2_VERSION_MICRO=0
-LIBPTP2_VERSION_INFO=$LIBPTP2_VERSION_MAJOR:$LIBPTP2_VERSION_MINOR:$LIBPTP2_VERSION_MICRO
+# (quoted from libtool doc)
+# 1. Update the version information only immediately before a public release
+# 2. If the library source code has changed at all since the last update,
+#    then increment revision (`c:r:a' becomes `c:r+1:a').
+# 3. If any interfaces have been added, removed, or changed since the last
+#    update, increment current, and set revision to 0.
+# 4. If any interfaces have been added since the last public release,
+#    then increment age.
+# 5. If any interfaces have been removed since the last public release,
+#    then set age to 0. 
+
+LIBPTP2_VERSION_CURRENT=1
+LIBPTP2_VERSION_REVISION=4
+LIBPTP2_VERSION_AGE=0
+LIBPTP2_VERSION_INFO=$LIBPTP2_VERSION_CURRENT:$LIBPTP2_VERSION_REVISION:$LIBPTP2_VERSION_AGE
 AC_SUBST(LIBPTP2_VERSION_INFO)
 
 # Checks for programs.
