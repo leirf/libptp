@@ -5,9 +5,11 @@ ptpcam  (c)2001-2003 Mariusz Woloszyn <emsi@ipartners.pl>
 *About this software*
 =====================
 
+You may find new versions of this software at:
+http://sf.net/projects/libptp
+
 This folder contains following code:
-ptp.c		- the main libptp2 code; this library is used to communicate
-		  with PTP devices
+ptp.c		- the main libptp2 code
 ptp.h		- libptp2 header files
 ptp-pack.c	- this file is included into ptp.c (internal code)
 ptpcam.c	- the software to manimpulate PTP cameras

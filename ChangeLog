@@ -1,3 +1,7 @@
+2003-04-19 Mariusz Woloszyn
+	* Makefile.am: added library versioning (currrent varsion 1.0.0)
+	* configure.in: added library versioning (currrent varsion 1.0.0)
+	* ptpcam.c: changed displaying of property values
 2003-05-15 Mariusz Woloszyn
 	* .cvsignore: added _stdint.h to .cvsignore
 	* README: reorganized for stand alone release (still lacks ptpcam

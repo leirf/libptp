@@ -5,6 +5,15 @@ AC_PREREQ(2.53)
 AM_CONFIG_HEADER([config.h])
 AC_PROG_LIBTOOL
 
+# library versioning
+# change micro every change is made, change minor every interface change,
+# change major on huge changes, code rewrite or huge interface change
+LIBPTP2_VERSION_MAJOR=1
+LIBPTP2_VERSION_MINOR=0
+LIBPTP2_VERSION_MICRO=0
+LIBPTP2_VERSION_INFO=$LIBPTP2_VERSION_MAJOR:$LIBPTP2_VERSION_MINOR:$LIBPTP2_VERSION_MICRO
+AC_SUBST(LIBPTP2_VERSION_INFO)
+
 # Checks for programs.
 AC_PROG_CC
 
