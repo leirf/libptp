@@ -540,24 +540,44 @@ get_property_description(PTPParams* params, uint16_t dpc)
 		uint16_t dpc;
 		const char *txt;
 	} ptp_device_properties_EK[] = {
-		{PTP_DPC_EK_ColorTemperature,	N_("EK Color Temperature")},
+		{PTP_DPC_EK_ColorTemperature,	N_("EK: Color Temperature")},
 		{PTP_DPC_EK_DateTimeStampFormat,
-					N_("EK Date Time Stamp Format")},
-		{PTP_DPC_EK_BeepMode,		N_("EK Beep Mode")},
-		{PTP_DPC_EK_VideoOut,		N_("EK Video Out")},
-		{PTP_DPC_EK_PowerSaving,	N_("EK Power Saving")},
-		{PTP_DPC_EK_UI_Language,	N_("EK UI Language")},
+					N_("EK: Date Time Stamp Format")},
+		{PTP_DPC_EK_BeepMode,		N_("EK: Beep Mode")},
+		{PTP_DPC_EK_VideoOut,		N_("EK: Video Out")},
+		{PTP_DPC_EK_PowerSaving,	N_("EK: Power Saving")},
+		{PTP_DPC_EK_UI_Language,	N_("EK: UI Language")},
 		{0,NULL}
 	};
 
+	struct {
+		uint16_t dpc;
+		const char *txt;
+	} ptp_device_properties_CANON[] = {
+		{PTP_DPC_CANON_BeepMode,	N_("CANON: Beep Mode")},
+		{PTP_DPC_CANON_UnixTime,	N_("CANON: Time measured in"
+						" secondssince 01-01-1970")},
+		{0,NULL}
+	};
+
+	if (dpc|PTP_DPC_EXTENSION_MASK==PTP_DPC_EXTENSION)
+	switch (params->deviceinfo.VendorExtensionID) {
+		case PTP_VENDOR_EASTMAN_KODAK:
+		for (i=0; ptp_device_properties_EK[i].txt!=NULL; i++)
+			if (ptp_device_properties_EK[i].dpc==dpc)
+				return (ptp_device_properties_EK[i].txt);
+		break;
+
+		case PTP_VENDOR_CANON:
+		for (i=0; ptp_device_properties_CANON[i].txt!=NULL; i++)
+			if (ptp_device_properties_CANON[i].dpc==dpc)
+				return (ptp_device_properties_CANON[i].txt);
+		break;
+	} else
 	for (i=0; ptp_device_properties[i].txt!=NULL; i++)
 		if (ptp_device_properties[i].dpc==dpc)
 			return (ptp_device_properties[i].txt);
 
-	if (params->deviceinfo.VendorExtensionID==PTP_VENDOR_EASTMAN_KODAK)
-	for (i=0; ptp_device_properties_EK[i].txt!=NULL; i++)
-		if (ptp_device_properties_EK[i].dpc==dpc)
-			return (ptp_device_properties_EK[i].txt);
 	return NULL;
 }
 

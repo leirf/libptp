@@ -26,9 +26,9 @@ software.
 ==============
 
 Currently this package requires libusb to build ptpcam.
-The libptp2 library itself is transport independent and does not require
+The libptp2 library itself is transport layer independent and does not require
 libusb, however no other transport layer has been tested due to lack
-of PTP nonUSB devices.
+of PTP non-USB devices.
 You can obtain libusb at http://libusb.sf.net/
 If you want to build this library (for test purposes) on a box without
 libusb pass --without-ptpcam option to configure script.

@@ -1,3 +1,8 @@
+2003-05-26 Mariusz Woloszyn
+	* ptp.h: added some CANON extension device property codes (thanks
+	  goes to Jean-Nicolas Kuttler)
+	* ptpcam.c: added support for CANON extension device property codes
+	* README: fixed typos
 2003-05-24 Mariusz Woloszyn
 	* ptpcam.c: fixed bug causing not displaying unknown properties
 2003-05-23 Mariusz Woloszyn
