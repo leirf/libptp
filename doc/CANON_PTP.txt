@@ -1,0 +1,154 @@
+-- PTP DOCUMENTATION FOR CANON CAMERAS --
+
+Author: Victor J. Lopez
+
+-----------------
+Index
+-----------------
+1.- About this
+2.- Notes
+3.- Remote Mode
+4.- Taking a Picture
+5.- Downloading a Picture
+6.- Commands
+7.- Camera Properties
+
+
+--------------------
+1.- About this
+--------------------
+
+- All of this was tested with a Canon PowerShot A300
+
+- The names for the commands was given by me, seeing what they do, therefore 
+probably a lot of them are wrong.
+
+--------------------
+2.- Notes
+--------------------
+
+For init the camera and can work with it, it's necessary open a session with 
+OpenSession standard command and
+CloseSession and the end.
+
+If you want change the camera's prperties, you have to enter in the 
+RemoteMode.
+
+--------------------
+3.- Modo Remoto
+--------------------
+
+Send EnterRemoteMode command for enter in this mode.
+
+In this mode is the only way for change the camera's properties. For that 
+use GetDevicePropDesc, GetDevicePropValue
+and SetDevicePropValue standard commands.
+
+In Remote Mode the picture isn't stored in flash memory, so you should 
+download the picture after it was taken.
+
+Send ExitRemoteMode command for exit from this mode.
+
+-----------------------
+4.- Taking a Picture
+-----------------------
+
+For take a picture, it's necessary to have sent the OpenSession command 
+before.
+
+In Non RemoteMode the picture can be taken with InitiateCapture command, and 
+await ObjectAdded event, then wait
+for CaptureComplete event.
+
+If you are in RemoteMode you can't use InitiateCapture command, instead of 
+that, you have to use Release command, and
+await for CaptureComplete event.
+
+In both ways for take the picture you can use GetObjectInfo for know the 
+picture's info.
+
+-----------------------------
+5.- Dowloading a Picture
+-----------------------------
+
+In Non Remote Mode, you can use GetObject.
+
+But it Remote Mode you have to use InitDownload (not sure) and Download 
+command for that.
+
+---------------
+6.- Commands
+---------------
+------------------------------------------------------------------------------------------------------------------
+|Value  | Name               | Parameters        | Event Awaited      | 
+Description                                |
+|-------|--------------------|-------------------|--------------------|--------------------------------------------|
+|0x9001 | InitDownload       | 1.- Handle        | None               | Init 
+the picture transfer.                 |
+|       |                    | 2.- 0 (????)      |                    | 
+Return as first parameter the object size. |
+|       |                    |                   |                    |      
+                                       |
+|-------|--------------------|-------------------|--------------------|--------------------------------------------|
+|0x9008 | EnterRemoteMode    | None              | StorageInfoChanged | 
+Enter in Remote Mode.                      |
+|-------|--------------------|-------------------|--------------------|--------------------------------------------|
+|0x9009 | ExitRemoteMode     | None              | StorageInfoChanged | 
+Close the Remote Mode                      |
+|-------|--------------------|-------------------|--------------------|--------------------------------------------|
+|0x9013 | CheckEvent         | None              | None               | 
+Check if there was an event. And if there  |
+|       |                    |                   |                    | is, 
+it return it as firs parameter.        |
+|-------|--------------------|-------------------|--------------------|--------------------------------------------|
+|0x901A | Release            | None              | CaptureComplete    | Take 
+a picture.                            |
+|-------|--------------------|-------------------|--------------------|--------------------------------------------|
+|0x901B | Download           | 1.- Handle        | None               | 
+Download the picture.                      |
+|       |                    | 2.- Offset        |                    |      
+                                       |
+|       |                    | 3.- Size          |                    |      
+                                       |
+|       |                    | 4.- 1             |                    |      
+                                       |
+|-------|--------------------|-------------------|--------------------|--------------------------------------------|
+|0x9020 | ChangeConfirm????? | Ninguno           | Ninguno            | It's 
+sent after modify a camera property.  |
+|       |                    |                   |                    | It 
+return 2 parameters. The second seems   |
+|       |                    |                   |                    | the 
+property modified.                     |
+|       |                    |                   |                    |      
+                                       |
+------------------------------------------------------------------------------------------------------------------
+
+7.- Camera Properties
+
+------------------------------------------------------------------------------------------------------------------
+|Property  | Name                        |  Values                           
+                                       |
+|----------|-----------------------------|-------------------------------------------------------------------------|
+|0xD008    | Resolution                  |  0x00 - 2048x1536 (Default)       
+                                       |
+|          |                             |  0x01 - 1600x1200                 
+                                       |
+|          |                             |  0x02 - 640 x480                  
+                                       |
+|          |                             |  0x03 - 1024x768                  
+                                       |
+|----------|-----------------------------|-------------------------------------------------------------------------|
+|0xD00A    | Flash                       |  0x00 - Disable.                  
+                                       |
+|          |                             |  0x01 - Enable.                   
+                                       |
+|----------|-----------------------------|-------------------------------------------------------------------------|
+|0xD040    | Color                       |  0x05 - Gray Scale.               
+                                       |
+|----------|-----------------------------|-------------------------------------------------------------------------|
+|0xD045    | Sesion?????                 |  0x01 - When an aplication closes 
+this value is set. (Close???)         |
+|          |                             |  0x04 - When an aplication start 
+this value is set. (Open???)           |
+------------------------------------------------------------------------------------------------------------------
+
