@@ -1,3 +1,5 @@
+2005-01-10 Mariusz Woloszyn
+	* ptp.h, ptp.c: added Nikon properties reported by Steve Harris
 2004-07-28 Mariusz Woloszyn
 	* README: minor changes, updated the copyright notice;
 	* configure.in: changed the version to 1.0.1 and updated the library
