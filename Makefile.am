@@ -7,4 +7,4 @@ libptp2_la_LDFLAGS = -module -avoid-version
 
 noinst_PROGRAMS = ptpcam
 ptpcam_SOURCES = ptpcam.c
-ptpcam_LDADD = -lusb ptp.o
+ptpcam_LDADD = -lusb -lptp2
