@@ -31,7 +31,7 @@ libusb, however no other transport layer has been tested due to lack
 of PTP non-USB devices.
 You can obtain libusb at http://libusb.sf.net/
 If you want to build this library (for test purposes) on a box without
-libusb pass --without-ptpcam option to configure script.
+libusb pass --disable-ptpcam option to configure script.
 
 
 ==================

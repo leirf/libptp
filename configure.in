@@ -46,9 +46,9 @@ AC_CHECK_FUNCS([memset strchr strdup strtol getopt_long])
 
 build_ptpcam="yes"
 
-#check for --without-ptpcam
-AC_ARG_WITH([ptpcam],
-	AC_HELP_STRING([--without-ptpcam],
+#check for --disable-ptpcam
+AC_ARG_ENABLE([ptpcam],
+	AC_HELP_STRING([--disable-ptpcam],
 		[do not build ptpcam (default is to build ptpcam)]),
 	[build_ptpcam=${withval}],
 	[build_ptpcam="yes"]
@@ -65,7 +65,7 @@ then
 			[AC_ERROR([
 *** You need at least version 0.1.6 of the libusb library to build ptpcam.
 *** Download and istall it from http://sourceforge.net/projects/libusb/ or
-*** use --without-ptpcam option to build without ptpcam tool.
+*** use --disable-ptpcam option to build without ptpcam tool.
 			])])
 	fi
 	
@@ -73,7 +73,7 @@ then
 		AC_ERROR([
 *** You need at least version 0.1.6 of the libusb library to build ptpcam.
 *** Download and istall it from http://sourceforge.net/projects/libusb/ or
-*** use --without-ptpcam option to build without ptpcam tool.
+*** use --disable-ptpcam option to build without ptpcam tool.
 		])
 	fi
 fi
