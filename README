@@ -1,6 +1,18 @@
 This is libptpt2
 
-This library is under developement yet.
-If you need to download images from PTP camera try
-http://emsi.it.pl/ptplib.tgz
+This library is under developement yet, but example software is able to
+download images.
 
+Download  and instal libusb (libusb.sf.net).
+To compile libptp and example program type make.
+After that run ./dx3500 vendorID ProductID.
+
+You can obtain vendor and product id by dmesg:
+for example:
+
+Product: KODAK DX3500 Digital Camera
+usb.c: unhandled interfaces on device
+usb.c: USB device 65 (vend/prod 0x40a/0x500) is not claimed by any active driver
+
+to download pictures type:
+./dx3500 0x40a 0x500

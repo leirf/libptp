@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <usb.h>
 
 #include "ptp_usb.h"
@@ -22,9 +25,10 @@ void error(char *x,...);
 
 query (usb_dev_handle* handle) {
 	PTPObjectHandles* ptp_objecthandles=malloc(sizeof(PTPObjectHandles));
-	PTPObjectInfo*** ptp_objectinfo=malloc(sizeof(PTPObjectInfo**));
-	int ret;
-	struct objectinfo** objinfoarray;
+	PTPObjectInfo* ptp_objectinfo;
+	int ret,i, file;
+	char filename[256];
+	char* object;
 
 	ptp_params->io_write = ptp_write;
 	ptp_params->io_read = ptp_read;
@@ -38,16 +42,36 @@ query (usb_dev_handle* handle) {
 
 // Open session number 1
 	if (ptp_opensession(ptp_params, 1)==PTP_RC_OK) printf("INIT OK\n");
+	else exit(-1);
 // getindex
 	if (ptp_getobjecthandles(ptp_params, ptp_objecthandles)==PTP_RC_OK) 
 		printf("GETINDEX OK\nArray of %i elements\n",ptp_objecthandles->n);
-	if (ptp_getobjectsinfo(ptp_params, ptp_objecthandles, ptp_objectinfo)
-		==PTP_RC_OK)
-		printf("GETOBJECTINFO OK!\n");
-// close
+		else exit(-1);
 
-	printf("ObjSize of #2 %i\n", (*ptp_objectinfo)[2]->ObjectCompressedSize);
+
+	for (i=0;i<ptp_objecthandles->n;i++)
+	{
+		printf("Dwnloading object %i\n",i);
+		ptp_objectinfo=malloc(sizeof(PTPObjectInfo));
+		ptp_getobjectinfo(ptp_params, ptp_objecthandles, i, ptp_objectinfo);
+
+		object=malloc(ptp_objectinfo->ObjectCompressedSize+PTP_REQ_HDR_LEN);
+		ret=ptp_getobject(ptp_params, ptp_objecthandles,
+			ptp_objectinfo, i, object);
+		if (ret=PTP_RC_OK) printf("OBJECT GET OK!!!\n"); else exit(-1);
+		sprintf(filename,"image%i.jpg",i);
+		file=open(filename, O_WRONLY|O_CREAT|O_TRUNC,S_IRWXU|S_IRGRP);
+		write(file, object+PTP_REQ_HDR_LEN, 
+		ptp_objectinfo->ObjectCompressedSize);
+		close(file);
+		free(object);
+		free(ptp_objectinfo);
+	}
+
+	
 	if (ptp_closesession(ptp_params)==PTP_RC_OK) printf ("CLOSE OK\n");
+
+	exit(-1);
 
 }
 
@@ -97,7 +121,7 @@ ptp_read (PTPReq* req, unsigned int size, void *data)
 	usb=(PTP_USB*)data;
 
 	ret=usb_bulk_read(usb->handle, usb->ep, (char *)req,
-		PTP_RESP_LEN, PTP_USB_TIMEOUT);
+		size, PTP_USB_TIMEOUT);
 
 	if (ret<0) return PTP_ERROR;
 	return PTP_OK;
@@ -113,7 +137,7 @@ ptp_write (PTPReq* req, unsigned int size, void *data)
 	usb=(PTP_USB*)data;
 
 	ret=usb_bulk_write(usb->handle, usb->ep, (char *)req,
-		PTP_REQ_LEN, PTP_USB_TIMEOUT);
+		size, PTP_USB_TIMEOUT);
 
 	if (ret<0) return PTP_ERROR;
 	return PTP_OK;
