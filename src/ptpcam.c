@@ -587,7 +587,7 @@ list_properties (int busn, int devn, short force)
 		"Could not open session!\n");
 	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
 		"Could not get device info\n");
-	printf("Quering: %s\n",params.deviceinfo.Model);
+	printf("Querying: %s\n",params.deviceinfo.Model);
 	for (i=0; i<params.deviceinfo.DevicePropertiesSupported_len;i++){
 		propdesc=get_property_description(&params,
 			params.deviceinfo.DevicePropertiesSupported[i]);
@@ -773,7 +773,7 @@ getset_property (int busn,int devn,uint16_t property,char* value,short force)
 		printf(".\n");
 	}
 	if (value) {
-		printf("Setting proprty value to '%s'\n",value);
+		printf("Setting property value to '%s'\n",value);
 		CRE(set_property(&params, property, value, dpd.DataType));
 	}
 	ptp_free_devicepropdesc(&dpd);
