@@ -1,6 +1,6 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT([libptp2],[1.0dev1],[emsi@ipartners.pl])
-AM_INIT_AUTOMAKE(libptp2, 1.0dev1)
+AC_INIT([libptp2],[1.0dev3],[emsi@ipartners.pl])
+AM_INIT_AUTOMAKE(libptp2, 1.0dev3)
 AC_PREREQ(2.53)
 AM_CONFIG_HEADER([config.h])
 AC_PROG_LIBTOOL
@@ -35,22 +35,38 @@ AC_FUNC_MKTIME
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([memset strchr strdup strtol getopt_long])
 
-# Check for libusb
-AC_PATH_PROG(LIBUSB_CONFIG,libusb-config)
-if test -n "${LIBUSB_CONFIG}"; then
-	AC_CHECK_LIB(usb,usb_busses,
-		[LIBUSB_VER="`$LIBUSB_CONFIG --version`"],
-		[AC_ERROR([
-		You need libusb at least 0.1.6 from
-		http://sourceforge.net/projects/libusb/
-		])])
-fi
+build_ptpcam="yes"
 
-if test "$LIBUSB_VER" \< "0.1.6"; then
-	AC_ERROR([
-	You need at least version 0.1.6 of the libusb library from
-	http://sourceforge.net/projects/libusb/
-	])
+#check for --without-ptpcam
+AC_ARG_WITH([ptpcam],
+	AC_HELP_STRING([--without-ptpcam],
+		[do not build ptpcam (default is to build ptpcam)]),
+	[build_ptpcam=${withval}],
+	[build_ptpcam="yes"]
+)
+AM_CONDITIONAL(PTPCAM, test "$build_ptpcam" = "yes")
+
+# Check for libusb
+if test "$build_ptpcam" = "yes"
+then
+	AC_PATH_PROG(LIBUSB_CONFIG,libusb-config)
+	if test -n "${LIBUSB_CONFIG}"; then
+		AC_CHECK_LIB(usb,usb_busses,
+			[LIBUSB_VER="`$LIBUSB_CONFIG --version`"],
+			[AC_ERROR([
+*** You need at least version 0.1.6 of the libusb library to build ptpcam.
+*** Download and istall it from http://sourceforge.net/projects/libusb/ or
+*** use --without-ptpcam option to build without ptpcam tool.
+			])])
+	fi
+	
+	if test "$LIBUSB_VER" \< "0.1.6"; then
+		AC_ERROR([
+*** You need at least version 0.1.6 of the libusb library to build ptpcam.
+*** Download and istall it from http://sourceforge.net/projects/libusb/ or
+*** use --without-ptpcam option to build without ptpcam tool.
+		])
+	fi
 fi
 
 dnl Create a header file containing NetBSD-style byte swapping macros
