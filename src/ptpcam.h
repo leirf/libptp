@@ -86,6 +86,9 @@
 #define ACT_LIST_FILES		0x7
 #define ACT_GET_FILE		0x8
 #define ACT_GET_ALL_FILES	0x9
+#define ACT_CAPTURE		0xA
+#define ACT_DELETE_OBJECT	0xB
+#define ACT_DELETE_ALL_FILES	0xC
 
 /* printing value type */
 #define PTPCAM_PRINT_HEX	00
@@ -126,6 +129,10 @@ void list_devices(short force);
 void show_info (int busn, int devn, short force);
 void list_files (int busn, int devn, short force);
 void get_file (int busn, int devn, short force, uint32_t handle, char* filename, int overwrite);
+void get_all_files (int busn, int devn, short force, int overwrite);
+void capture_image (int busn, int devn, short force);
+void delete_object (int busn, int devn, short force, uint32_t handle);
+void delete_all_files (int busn, int devn, short force);
 void list_operations (int busn, int devn, short force);
 void list_devices(short force);
 void list_properties (int dev, int bus, short force);

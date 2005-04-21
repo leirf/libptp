@@ -95,8 +95,8 @@ help()
 {
 	printf("USAGE: ptpcam [OPTION]\n\n");
 	printf("Options:\n"
-	"  -B, --bus=BUS-NUMBER         USB bus number\n"
-	"  -D, --dev=DEV-NUMBER         USB assigned device number\n"
+	"  --bus=BUS-NUMBER             USB bus number\n"
+	"  --dev=DEV-NUMBER             USB assigned device number\n"
 	"  -r, --reset                  Reset the device\n"
 	"  -l, --list-devices           List all PTP devices\n"
 	"  -i, --info                   Show device info\n"
@@ -114,6 +114,9 @@ help()
 	"  -G, --get-all-files          Get all files\n"
 	"  --overwrite                  Force file overwrite while saving"
 					"to disk\n"
+	"  -d, --delete-object=HANDLE   Delete object (file) by given handle\n"
+	"  -D, --delete-all-files       Delete all files form camera\n"
+	"  -c, --capture                Initiate capture\n"
 	"  -f, --force                  Talk to non PTP devices\n"
 	"  -v, --verbose                Be verbose (print more debug)\n"
 	"  -h, --help                   Print this help message\n"
@@ -439,6 +442,20 @@ show_info (int busn, int devn, short force)
 }
 
 void
+capture_image (int busn, int devn, short force)
+{
+	PTPParams params;
+	PTP_USB ptp_usb;
+	struct usb_device *dev;
+
+	printf("\nInitiating captue...\n");
+	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
+		return;
+	CR(ptp_initiatecapture (&params, 0x0, 0), "Could not capture\n");
+	close_camera(&ptp_usb, &params, dev);
+}
+
+void
 list_files (int busn, int devn, short force)
 {
 	PTPParams params;
@@ -467,6 +484,62 @@ list_files (int busn, int devn, short force)
 	printf("\n");
 	close_camera(&ptp_usb, &params, dev);
 }
+
+void
+delete_object (int busn, int devn, short force, uint32_t handle)
+{
+	PTPParams params;
+	PTP_USB ptp_usb;
+	struct usb_device *dev;
+	PTPObjectInfo oi;
+
+	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
+		return;
+	CR(ptp_getobjectinfo(&params,handle,&oi),
+		"Could not get object info\n");
+	CR(ptp_deleteobject(&params, handle,0), "Could not delete object\n");
+	printf("\nObject 0x%08x (%s) deleted.\n",handle, oi.Filename);
+	close_camera(&ptp_usb, &params, dev);
+}
+
+void
+delete_all_files (int busn, int devn, short force)
+{
+	PTPParams params;
+	PTP_USB ptp_usb;
+	struct usb_device *dev;
+	PTPObjectInfo oi;
+	uint32_t handle;
+	int i;
+	int ret;
+
+	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
+		return;
+	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
+		"Could not get device info\n");
+	printf("Camera: %s\n",params.deviceinfo.Model);
+	CR(ptp_getobjecthandles (&params,0xffffffff, 0x000000, 0x000000,
+		&params.handles),"Could not get object handles\n");
+
+	for (i=0; i<params.handles.n; i++) {
+		handle=params.handles.Handler[i];
+		if ((ret=ptp_getobjectinfo(&params,handle, &oi))!=PTP_RC_OK){
+			fprintf(stderr,"Handle: 0x%08x\n",handle);
+			fprintf(stderr,"ERROR: Could not get object info\n");
+			ptp_perror(&params,ret);
+			if (ret==PTP_ERROR_IO) clear_stall(&ptp_usb, dev);
+			continue;
+		}
+		if (oi.ObjectFormat == PTP_OFC_Association)
+			continue;
+		CR(ptp_deleteobject(&params, handle,0),
+				"Could not delete object\n");
+		printf("Object 0x%08x (%s) deleted.\n",handle, oi.Filename);
+	}
+	close_camera(&ptp_usb, &params, dev);
+}
+
+
 
 void
 get_file (int busn, int devn, short force, uint32_t handle, char* filename,
@@ -526,9 +599,6 @@ out:
 	close_camera(&ptp_usb, &params, dev);
 
 }
-
-void    
-get_all_files (int busn, int devn, short force, int overwrite);
 
 void
 get_all_files (int busn, int devn, short force, int overwrite)
@@ -619,6 +689,7 @@ list_operations (int busn, int devn, short force)
 	const char* name;
 
 	printf("\nListing supported operations...\n");
+#if 0
 #ifdef DEBUG
 	printf("dev %i\tbus %i\n",devn,busn);
 #endif
@@ -633,6 +704,9 @@ list_operations (int busn, int devn, short force)
 	init_ptp_usb(&params, &ptp_usb, dev);
 	CR(ptp_opensession (&params,1),
 		"Could not open session!\n");
+#endif
+	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
+		return;
 	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
 		"Could not get device info\n");
 	printf("Camera: %s\n",params.deviceinfo.Model);
@@ -1012,8 +1086,8 @@ main(int argc, char ** argv)
 	int option_index = 0,opt;
 	static struct option loptions[] = {
 		{"help",0,0,'h'},
-		{"bus",1,0,'B'},
-		{"dev",1,0,'D'},
+		{"bus",1,0,0},
+		{"dev",1,0,0},
 		{"reset",0,0,'r'},
 		{"list-devices",0,0,'l'},
 		{"list-files",0,0,'L'},
@@ -1023,6 +1097,9 @@ main(int argc, char ** argv)
 		{"set-property",1,0,'s'},
 		{"get-file",1,0,'g'},
 		{"get-all-files",0,0,'G'},
+		{"capture",0,0,'c'},
+		{"delete-object",1,0,'d'},
+		{"delete-all-files",1,0,'D'},
 		{"info",0,0,'i'},
 		{"val",1,0,0},
 		{"filename",1,0,0},
@@ -1033,7 +1110,7 @@ main(int argc, char ** argv)
 	};
 	
 	while(1) {
-		opt = getopt_long (argc, argv, "LhlipfroGg:s:D:B:v::", loptions, &option_index);
+		opt = getopt_long (argc, argv, "LhlcipfroGgDd:s:v::", loptions, &option_index);
 		if (opt==-1) break;
 	
 		switch (opt) {
@@ -1045,12 +1122,10 @@ main(int argc, char ** argv)
 				filename=strdup(optarg);
 			if (!(strcmp("overwrite",loptions[option_index].name)))
 				overwrite=OVERWRITE_EXISTING;
-			break;
-		case 'B':
-			busn=strtol(optarg,NULL,10);
-			break;
-		case 'D':
-			devn=strtol(optarg,NULL,10);
+			if (!(strcmp("bus",loptions[option_index].name)))
+				busn=strtol(optarg,NULL,10);
+			if (!(strcmp("dev",loptions[option_index].name)))
+				devn=strtol(optarg,NULL,10);
 			break;
 		case 'f':
 			force=~force;
@@ -1085,6 +1160,9 @@ main(int argc, char ** argv)
 		case 'i':
 			action=ACT_SHOW_INFO;
 			break;
+		case 'c':
+			action=ACT_CAPTURE;
+			break;
 		case 'L':
 			action=ACT_LIST_FILES;
 			break;
@@ -1095,6 +1173,12 @@ main(int argc, char ** argv)
 		case 'G':
 			action=ACT_GET_ALL_FILES;
 			break;
+		case 'd':
+			action=ACT_DELETE_OBJECT;
+			handle=strtol(optarg,NULL,16);
+			break;
+		case 'D':
+			action=ACT_DELETE_ALL_FILES;
 		case '?':
 			break;
 		default:
@@ -1134,6 +1218,15 @@ main(int argc, char ** argv)
 			break;
 		case ACT_GET_ALL_FILES:
 			get_all_files(busn,devn,force,overwrite);
+			break;
+		case ACT_CAPTURE:
+			capture_image(busn,devn,force);
+			break;
+		case ACT_DELETE_OBJECT:
+			delete_object(busn,devn,force,handle);
+			break;
+		case ACT_DELETE_ALL_FILES:
+			delete_all_files(busn,devn,force);
 			break;
 	}
 
