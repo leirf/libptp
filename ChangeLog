@@ -1,3 +1,6 @@
+2005-04-21 Mariusz Woloszyn
+	* src/ptpcam.c,src/ptpcam.h: added --capture, --delete-object and
+	  --delete-all-files support
 2005-03-01 Mariusz Woloszyn
 	* ptp.c, ptp.h, ptp-pack.c, ptpcam.c: moved to src
 	* src/ptpcam.c: moved some defines and definitions to ptpcam.h,
