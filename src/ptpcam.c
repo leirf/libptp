@@ -228,21 +228,32 @@ init_ptp_usb (PTPParams* params, PTP_USB* ptp_usb, struct usb_device* dev)
 void
 clear_stall(PTP_USB* ptp_usb, struct usb_device* dev)
 {
-	uint16_t status;
+	uint16_t status=0;
+	int ret;
 
 	/* check the inep status */
-	usb_get_endpoint_status(ptp_usb,ptp_usb->inep,&status);
+	ret=usb_get_endpoint_status(ptp_usb,ptp_usb->inep,&status);
+	if (ret<0) perror ("inep: usb_get_endpoint_status()");
 	/* and clear the HALT condition if happend */
-	if (status) {
-		usb_clear_stall_feature(ptp_usb,ptp_usb->inep);
+	else if (status) {
+		printf("Resetting input pipe!\n");
+		ret=usb_clear_stall_feature(ptp_usb,ptp_usb->inep);
         	/*usb_clear_halt(ptp_usb->handle,ptp_usb->inep); */
+		if (ret<0)perror ("usb_clear_stall_feature()");
 	}
+	status=0;
+
 	/* check the outep status */
-	usb_get_endpoint_status(ptp_usb,ptp_usb->outep,&status);
-	if (status) {
-        	usb_clear_stall_feature(ptp_usb,ptp_usb->outep);
+	ret=usb_get_endpoint_status(ptp_usb,ptp_usb->outep,&status);
+	if (ret<0) perror ("outep: usb_get_endpoint_status()");
+	/* and clear the HALT condition if happend */
+	else if (status) {
+		printf("Resetting output pipe!\n");
+        	ret=usb_clear_stall_feature(ptp_usb,ptp_usb->outep);
 		/*usb_clear_halt(ptp_usb->handle,ptp_usb->outep); */
+		if (ret<0)perror ("usb_clear_stall_feature()");
 	}
+
         /*usb_clear_halt(ptp_usb->handle,ptp_usb->intep); */
 }
 
