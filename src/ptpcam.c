@@ -80,8 +80,13 @@
 #define USB_FEATURE_HALT	0x00
 #endif
 
+/* OUR APPLICATION USB URB (2MB) ;) */
+#define PTPCAM_USB_URB		2097152
+
 /* one global variable (yes, I know it sucks) */
 short verbose=0;
+/* the other one, it sucks definitely ;) */
+int ptpcam_usb_timeout = 3000;
 
 
 void
@@ -123,18 +128,32 @@ help()
 	"\n");
 }
 
-
 static short
 ptp_read_func (unsigned char *bytes, unsigned int size, void *data)
 {
-	int result;
+	int result=-1;
 	PTP_USB *ptp_usb=(PTP_USB *)data;
+	int toread;
+	signed long int rbytes=size;
 
-	result=usb_bulk_read(ptp_usb->handle, ptp_usb->inep,(char *)bytes, size,3000);
-	if (result==0)
-	result=usb_bulk_read(ptp_usb->handle, ptp_usb->inep,(char *)bytes, size,3000);
-	if (result >= 0)
+	do {
+		if (rbytes>PTPCAM_USB_URB) 
+			toread = PTPCAM_USB_URB;
+		else
+			toread = rbytes;
+		result=usb_bulk_read(ptp_usb->handle, ptp_usb->inep,(char *)bytes, toread,ptpcam_usb_timeout);
+#if 0 /* does this bug persist??? */
+		if (result==0)
+			result=usb_bulk_read(ptp_usb->handle, ptp_usb->inep,(char *)bytes, toread,3000);
+#endif
+		if (result < 0)
+			break;
+		rbytes-=PTPCAM_USB_URB;
+	} while (rbytes>0);
+
+	if (result > 0) {
 		return (PTP_RC_OK);
+	}
 	else 
 	{
 		if (verbose) perror("usb_bulk_read");
@@ -148,7 +167,7 @@ ptp_write_func (unsigned char *bytes, unsigned int size, void *data)
 	int result;
 	PTP_USB *ptp_usb=(PTP_USB *)data;
 
-	result=usb_bulk_write(ptp_usb->handle,ptp_usb->outep,(char *)bytes,size,3000);
+	result=usb_bulk_write(ptp_usb->handle,ptp_usb->outep,(char *)bytes,size,ptpcam_usb_timeout);
 	if (result >= 0)
 		return (PTP_RC_OK);
 	else 
@@ -463,6 +482,10 @@ capture_image (int busn, int devn, short force)
 	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
 		return;
 	CR(ptp_initiatecapture (&params, 0x0, 0), "Could not capture\n");
+	/* NIKON is not responding until capture completed thus increasing
+	   timeout */
+	if (params.deviceinfo.VendorExtensionID==PTP_VENDOR_NIKON)
+		ptpcam_usb_timeout=8000;
 	close_camera(&ptp_usb, &params, dev);
 }
 
