@@ -133,19 +133,19 @@ ptp_read_func (unsigned char *bytes, unsigned int size, void *data)
 {
 	int result=-1;
 	PTP_USB *ptp_usb=(PTP_USB *)data;
-	int toread;
+	int toread=0;
 	signed long int rbytes=size;
 
 	do {
+		bytes+=toread;
 		if (rbytes>PTPCAM_USB_URB) 
 			toread = PTPCAM_USB_URB;
 		else
 			toread = rbytes;
 		result=usb_bulk_read(ptp_usb->handle, ptp_usb->inep,(char *)bytes, toread,ptpcam_usb_timeout);
-#if 0 /* does this bug persist??? */
-		if (result==0)
-			result=usb_bulk_read(ptp_usb->handle, ptp_usb->inep,(char *)bytes, toread,3000);
-#endif
+/* sometimes retry might help */
+		if (result==0 || result==EPIPE)
+			result=usb_bulk_read(ptp_usb->handle, ptp_usb->inep,(char *)bytes, toread,ptpcam_usb_timeout);
 		if (result < 0)
 			break;
 		rbytes-=PTPCAM_USB_URB;

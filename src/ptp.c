@@ -170,7 +170,7 @@ ptp_usb_getdata (PTPParams* params, PTPContainer* ptp,
 	if (*data!=NULL) return PTP_ERROR_BADPARAM;
 #endif
 	do {
-		unsigned int len;
+		uint32_t len;
 		/* read first(?) part of data */
 		ret=params->read_func((unsigned char *)&usbdata,
 				sizeof(usbdata), params->data);
