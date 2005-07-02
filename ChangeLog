@@ -1,6 +1,12 @@
+2005-07.02 Mariusz Woloszyn
+	* src/ptpcam.c: added --loop-capture
+	* configure.in: changed version number, improved libusb checking
 2005-07-02 Mariusz Woloszyn
 	* src/ptpcam.c, src/ptp.c: fixed a bug that caused files over 2MB to
 	  be corrupted while downloading. 
+2005-07-02 libptp2-1.0.3 started
+2005-05-06 Mariusz Woloszyn
+	* ptpcam.c: added NIKON capture workaround
 2005-04-21 Mariusz Woloszyn
 	* src/ptpcam.c,src/ptpcam.h: added --capture, --delete-object and
 	  --delete-all-files support

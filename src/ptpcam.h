@@ -89,6 +89,7 @@
 #define ACT_CAPTURE		0xA
 #define ACT_DELETE_OBJECT	0xB
 #define ACT_DELETE_ALL_FILES	0xC
+#define ACT_LOOP_CAPTURE	0xD
 
 /* printing value type */
 #define PTPCAM_PRINT_HEX	00
@@ -136,6 +137,7 @@ void delete_all_files (int busn, int devn, short force);
 void list_operations (int busn, int devn, short force);
 void list_devices(short force);
 void list_properties (int dev, int bus, short force);
+void loop_capture (int busn, int devn, short force, int n,  int overwrite);
 
 struct usb_bus* init_usb(void);
 void close_usb(PTP_USB* ptp_usb, struct usb_device* dev);

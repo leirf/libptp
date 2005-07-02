@@ -1,6 +1,6 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT([libptp2],[1.0.2],[emsi@ipartners.pl])
-AM_INIT_AUTOMAKE(libptp2, 1.0.2)
+AC_INIT([libptp2],[1.0.3],[emsi@ipartners.pl])
+AM_INIT_AUTOMAKE(libptp2, 1.0.3)
 AC_PREREQ(2.53)
 AM_CONFIG_HEADER([config.h])
 AC_PROG_LIBTOOL
@@ -86,7 +86,7 @@ then
 		LDFLAGS="$LDFLAGS_save"
 	fi
 	
-	if test "$LIBUSB_VER" \< "0.1.8"; then
+	if test "$LIBUSB_VER" \< "0.1.08"; then
 		AC_ERROR([
 *** You need at least version 0.1.8 of the libusb library to build ptpcam.
 *** Download and istall it from http://sourceforge.net/projects/libusb/ or

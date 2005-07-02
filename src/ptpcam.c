@@ -122,6 +122,7 @@ help()
 	"  -d, --delete-object=HANDLE   Delete object (file) by given handle\n"
 	"  -D, --delete-all-files       Delete all files form camera\n"
 	"  -c, --capture                Initiate capture\n"
+	"  --loop-capture=N		Perform N times capture/get/delete\n"
 	"  -f, --force                  Talk to non PTP devices\n"
 	"  -v, --verbose                Be verbose (print more debug)\n"
 	"  -h, --help                   Print this help message\n"
@@ -468,6 +469,105 @@ show_info (int busn, int devn, short force)
 	printf("  extension version: 0x%04x\n",
 				params.deviceinfo.VendorExtensionVersion);
 	printf("\n");
+	close_camera(&ptp_usb, &params, dev);
+}
+
+void
+loop_capture (int busn, int devn, short force, int n,  int overwrite)
+{
+	PTPParams params;
+	PTP_USB ptp_usb;
+	struct usb_device *dev;
+	int file;
+	PTPObjectInfo oi;
+	uint32_t handle;
+	char *image;
+	int ret;
+	int i;
+	char *filename;
+
+	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
+		return;
+
+	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
+		"Could not get device info\n");
+	printf("Camera: %s\n",params.deviceinfo.Model);
+
+	/* NIKON is not responding until capture completed thus increasing
+	   timeout */
+	if (params.deviceinfo.VendorExtensionID==PTP_VENDOR_NIKON)
+		ptpcam_usb_timeout=8000;
+
+	/* local loop */
+	while (n>0) {
+		/* capture */
+		printf("\nInitiating captue...\n");
+		CR(ptp_initiatecapture (&params, 0x0, 0),"Could not capture\n");
+		n--;
+
+		CR(ptp_getobjecthandles (&params,0xffffffff, 0x000000, 0x000000,
+			&params.handles),"Could not get object handles\n");
+		/* download // we could avoid this all if camera would
+		   emit object handler in event :(*/
+		for (i=0; i<params.handles.n; i++) {
+			memset(&oi, 0, sizeof(PTPObjectInfo));
+			handle=params.handles.Handler[i];
+			if (verbose)
+				printf ("Handle: 0x%08x\n",handle);
+			if ((ret=ptp_getobjectinfo(&params,handle, &oi))!=PTP_RC_OK){
+				fprintf(stderr,"ERROR: Could not get object info\n");
+				ptp_perror(&params,ret);
+				if (ret==PTP_ERROR_IO) clear_stall(&ptp_usb, dev);
+				continue;
+			}
+	
+			if (oi.ObjectFormat == PTP_OFC_Association)
+					goto out;
+			filename=(oi.Filename);
+			file=open(filename, (overwrite==OVERWRITE_EXISTING?0:O_EXCL)|O_RDWR|O_CREAT|O_TRUNC,S_IRWXU|S_IRGRP);
+			if (file==-1) {
+				if (errno==EEXIST) {
+					printf("Skipping file: \"%s\", file exists!\n",filename);
+					continue;
+				}
+				perror("open");
+				goto out;
+			}
+			lseek(file,oi.ObjectCompressedSize-1,SEEK_SET);
+			ret=write(file,"",1);
+			if (ret==-1) {
+				perror("write");
+				goto out;
+			}
+			image=mmap(0,oi.ObjectCompressedSize,PROT_READ|PROT_WRITE,MAP_SHARED,
+				file,0);
+			if (image==MAP_FAILED) {
+				perror("mmap");
+				close(file);
+				goto out;
+			}
+			printf ("Saving file: \"%s\" ",filename);
+			fflush(NULL);
+			ret=ptp_getobject(&params,handle,&image);
+			munmap(image,oi.ObjectCompressedSize);
+			close(file);
+			if (ret!=PTP_RC_OK) {
+				printf ("error!\n");
+				ptp_perror(&params,ret);
+				if (ret==PTP_ERROR_IO) clear_stall(&ptp_usb, dev);
+			} else {
+				/* and delete from camera! */
+				printf("is done...\nDeleting from camera.\n");
+				CR(ptp_deleteobject(&params, handle,0),
+						"Could not delete object\n");
+				printf("Object 0x%08x (%s) deleted.\n",handle, oi.Filename);
+
+			}
+	out:
+			;
+		}
+	}
+
 	close_camera(&ptp_usb, &params, dev);
 }
 
@@ -1116,6 +1216,7 @@ main(int argc, char ** argv)
 	char* value=NULL;
 	uint32_t handle=0;
 	char *filename=NULL;
+	int num=0;
 	/* parse options */
 	int option_index = 0,opt;
 	static struct option loptions[] = {
@@ -1132,6 +1233,7 @@ main(int argc, char ** argv)
 		{"get-file",1,0,'g'},
 		{"get-all-files",0,0,'G'},
 		{"capture",0,0,'c'},
+		{"loop-capture",1,0,0},
 		{"delete-object",1,0,'d'},
 		{"delete-all-files",1,0,'D'},
 		{"info",0,0,'i'},
@@ -1160,6 +1262,12 @@ main(int argc, char ** argv)
 				busn=strtol(optarg,NULL,10);
 			if (!(strcmp("dev",loptions[option_index].name)))
 				devn=strtol(optarg,NULL,10);
+			if (!(strcmp("loop-capture",loptions[option_index].name)))
+			{
+				action=ACT_LOOP_CAPTURE;
+				num=strtol(optarg,NULL,10);
+			}
+
 			break;
 		case 'f':
 			force=~force;
@@ -1262,6 +1370,8 @@ main(int argc, char ** argv)
 		case ACT_DELETE_ALL_FILES:
 			delete_all_files(busn,devn,force);
 			break;
+		case ACT_LOOP_CAPTURE:
+			loop_capture (busn,devn,force,num,overwrite);
 	}
 
 	return 0;
