@@ -1,3 +1,6 @@
+2005-07-07 Mariusz Woloszyn
+	* ptp.c, ptpcam.c, ptpcam.h: better capture, better error handling,
+	  code polishing
 2005-07.02 Mariusz Woloszyn
 	* src/ptpcam.c: added --loop-capture
 	* configure.in: changed version number, improved libusb checking
