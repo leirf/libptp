@@ -6,3 +6,4 @@ TODO:
 - check and improve (if necessary) build system
 
 - add batching support
+- preserve file creation time across downloading
