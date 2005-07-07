@@ -83,10 +83,13 @@
 /* OUR APPLICATION USB URB (2MB) ;) */
 #define PTPCAM_USB_URB		2097152
 
+#define USB_TIMEOUT		4000
+#define USB_CAPTURE_TIMEOUT	20000
+
 /* one global variable (yes, I know it sucks) */
 short verbose=0;
 /* the other one, it sucks definitely ;) */
-int ptpcam_usb_timeout = 3000;
+int ptpcam_usb_timeout = USB_TIMEOUT;
 
 
 void
@@ -184,10 +187,17 @@ ptp_check_int (unsigned char *bytes, unsigned int size, void *data)
 	int result;
 	PTP_USB *ptp_usb=(PTP_USB *)data;
 
-	result=usb_bulk_read(ptp_usb->handle, ptp_usb->intep,(char *)bytes,size,100);
+	if (verbose) printf ("Awaiting event...\n");
+
+	result=usb_bulk_read(ptp_usb->handle, ptp_usb->intep,(char *)bytes,size,ptpcam_usb_timeout);
 	if (result==0)
-		result = usb_bulk_read(ptp_usb->handle, ptp_usb->intep,(char *) bytes, size, 100);
-	return (result);
+		result = usb_bulk_read(ptp_usb->handle, ptp_usb->intep,(char *) bytes, size, ptpcam_usb_timeout);
+	if (result >= 0) {
+		return (PTP_RC_OK);
+	} else {
+		if (verbose) perror("ptp_check_int");
+		return PTP_ERROR_IO;
+	}
 }
 
 
@@ -347,13 +357,25 @@ find_endpoints(struct usb_device *dev, int* inep, int* outep, int* intep)
 	if (ep[i].bmAttributes==USB_ENDPOINT_TYPE_BULK)	{
 		if ((ep[i].bEndpointAddress&USB_ENDPOINT_DIR_MASK)==
 			USB_ENDPOINT_DIR_MASK)
+		{
 			*inep=ep[i].bEndpointAddress;
+			if (verbose)
+				printf ("Found inep: 0x%02x\n",*inep);
+		}
 		if ((ep[i].bEndpointAddress&USB_ENDPOINT_DIR_MASK)==0)
+		{
 			*outep=ep[i].bEndpointAddress;
+			if (verbose)
+				printf ("Found outep: 0x%02x\n",*outep);
+		}
 		} else if (ep[i].bmAttributes==USB_ENDPOINT_TYPE_INTERRUPT){
 			if ((ep[i].bEndpointAddress&USB_ENDPOINT_DIR_MASK)==
 				USB_ENDPOINT_DIR_MASK)
+			{
 				*intep=ep[i].bEndpointAddress;
+				if (verbose)
+					printf ("Found intep: 0x%02x\n",*intep);
+			}
 		}
 	}
 }
@@ -473,30 +495,73 @@ show_info (int busn, int devn, short force)
 }
 
 void
+capture_image (int busn, int devn, short force)
+{
+	PTPParams params;
+	PTP_USB ptp_usb;
+	PTPContainer event;
+	struct usb_device *dev;
+	short ret;
+
+	printf("\nInitiating captue...\n");
+	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
+		return;
+	/* capture timeout should be longer */
+	ptpcam_usb_timeout=USB_CAPTURE_TIMEOUT;
+
+	CR(ptp_initiatecapture (&params, 0x0, 0), "Could not capture.\n");
+	
+	ret=ptp_usb_event_wait(&params,&event);
+	if (verbose) printf ("Event received %08x, ret=%x\n", event.Code, ret);
+	if (ret!=PTP_RC_OK) goto err;
+	if (event.Code==PTP_EC_CaptureComplete) {
+		printf ("Camera reported 'capture completed' but the object information is missing.\n");
+		goto out;
+	}
+		
+	while (event.Code==PTP_EC_ObjectAdded) {
+		printf ("Object added 0x%08x\n", event.Param1);
+		if (ptp_usb_event_wait(&params, &event)!=PTP_RC_OK)
+			goto err;
+		if (verbose) printf ("Event received %08x, ret=%x\n", event.Code, ret);
+		if (event.Code==PTP_EC_CaptureComplete) {
+			printf ("Capture completed successfully!\n");
+			goto out;
+		}
+	}
+	
+err:
+	printf("Events receiving error. Capture status unknown.\n");
+out:
+
+	ptpcam_usb_timeout=USB_TIMEOUT;
+	close_camera(&ptp_usb, &params, dev);
+}
+
+void
 loop_capture (int busn, int devn, short force, int n,  int overwrite)
 {
 	PTPParams params;
 	PTP_USB ptp_usb;
+	PTPContainer event;
 	struct usb_device *dev;
 	int file;
 	PTPObjectInfo oi;
-	uint32_t handle;
+	uint32_t handle=0;
 	char *image;
 	int ret;
-	int i;
 	char *filename;
 
 	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
 		return;
 
+	/* capture timeout should be longer */
+	ptpcam_usb_timeout=USB_CAPTURE_TIMEOUT;
+
 	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
 		"Could not get device info\n");
 	printf("Camera: %s\n",params.deviceinfo.Model);
 
-	/* NIKON is not responding until capture completed thus increasing
-	   timeout */
-	if (params.deviceinfo.VendorExtensionID==PTP_VENDOR_NIKON)
-		ptpcam_usb_timeout=8000;
 
 	/* local loop */
 	while (n>0) {
@@ -505,87 +570,81 @@ loop_capture (int busn, int devn, short force, int n,  int overwrite)
 		CR(ptp_initiatecapture (&params, 0x0, 0),"Could not capture\n");
 		n--;
 
-		CR(ptp_getobjecthandles (&params,0xffffffff, 0x000000, 0x000000,
-			&params.handles),"Could not get object handles\n");
-		/* download // we could avoid this all if camera would
-		   emit object handler in event :(*/
-		for (i=0; i<params.handles.n; i++) {
-			memset(&oi, 0, sizeof(PTPObjectInfo));
-			handle=params.handles.Handler[i];
-			if (verbose)
-				printf ("Handle: 0x%08x\n",handle);
-			if ((ret=ptp_getobjectinfo(&params,handle, &oi))!=PTP_RC_OK){
-				fprintf(stderr,"ERROR: Could not get object info\n");
-				ptp_perror(&params,ret);
-				if (ret==PTP_ERROR_IO) clear_stall(&ptp_usb, dev);
-				continue;
-			}
-	
-			if (oi.ObjectFormat == PTP_OFC_Association)
-					goto out;
-			filename=(oi.Filename);
-			file=open(filename, (overwrite==OVERWRITE_EXISTING?0:O_EXCL)|O_RDWR|O_CREAT|O_TRUNC,S_IRWXU|S_IRGRP);
-			if (file==-1) {
-				if (errno==EEXIST) {
-					printf("Skipping file: \"%s\", file exists!\n",filename);
-					continue;
-				}
-				perror("open");
-				goto out;
-			}
-			lseek(file,oi.ObjectCompressedSize-1,SEEK_SET);
-			ret=write(file,"",1);
-			if (ret==-1) {
-				perror("write");
-				goto out;
-			}
-			image=mmap(0,oi.ObjectCompressedSize,PROT_READ|PROT_WRITE,MAP_SHARED,
-				file,0);
-			if (image==MAP_FAILED) {
-				perror("mmap");
-				close(file);
-				goto out;
-			}
-			printf ("Saving file: \"%s\" ",filename);
-			fflush(NULL);
-			ret=ptp_getobject(&params,handle,&image);
-			munmap(image,oi.ObjectCompressedSize);
-			close(file);
-			if (ret!=PTP_RC_OK) {
-				printf ("error!\n");
-				ptp_perror(&params,ret);
-				if (ret==PTP_ERROR_IO) clear_stall(&ptp_usb, dev);
-			} else {
-				/* and delete from camera! */
-				printf("is done...\nDeleting from camera.\n");
-				CR(ptp_deleteobject(&params, handle,0),
-						"Could not delete object\n");
-				printf("Object 0x%08x (%s) deleted.\n",handle, oi.Filename);
-
-			}
-	out:
-			;
+		ret=ptp_usb_event_wait(&params,&event);
+		if (verbose) printf ("Event received %08x, ret=%x\n", event.Code, ret);
+		if (ret!=PTP_RC_OK) goto err;
+		if (event.Code==PTP_EC_CaptureComplete) {
+			printf ("CANNOT DOWNLOAD: got 'capture completed' but the object information is missing.\n");
+			goto out;
 		}
+			
+		while (event.Code==PTP_EC_ObjectAdded) {
+			printf ("Object added 0x%08x\n", event.Param1);
+			handle=event.Param1;
+			if (ptp_usb_event_wait(&params, &event)!=PTP_RC_OK)
+				goto err;
+			if (verbose) printf ("Event received %08x, ret=%x\n", event.Code, ret);
+			if (event.Code==PTP_EC_CaptureComplete)
+				goto download;
+		}
+download:	
+
+		memset(&oi, 0, sizeof(PTPObjectInfo));
+		if (verbose) printf ("Downloading: 0x%08x\n",handle);
+		if ((ret=ptp_getobjectinfo(&params,handle, &oi))!=PTP_RC_OK){
+			fprintf(stderr,"ERROR: Could not get object info\n");
+			ptp_perror(&params,ret);
+			if (ret==PTP_ERROR_IO) clear_stall(&ptp_usb, dev);
+			continue;
+		}
+	
+		if (oi.ObjectFormat == PTP_OFC_Association)
+				goto out;
+		filename=(oi.Filename);
+		file=open(filename, (overwrite==OVERWRITE_EXISTING?0:O_EXCL)|O_RDWR|O_CREAT|O_TRUNC,S_IRWXU|S_IRGRP);
+		if (file==-1) {
+			if (errno==EEXIST) {
+				printf("Skipping file: \"%s\", file exists!\n",filename);
+				goto out;
+			}
+			perror("open");
+			goto out;
+		}
+		lseek(file,oi.ObjectCompressedSize-1,SEEK_SET);
+		ret=write(file,"",1);
+		if (ret==-1) {
+			perror("write");
+			goto out;
+		}
+		image=mmap(0,oi.ObjectCompressedSize,PROT_READ|PROT_WRITE,MAP_SHARED,
+			file,0);
+		if (image==MAP_FAILED) {
+			perror("mmap");
+			close(file);
+			goto out;
+		}
+		printf ("Saving file: \"%s\" ",filename);
+		fflush(NULL);
+		ret=ptp_getobject(&params,handle,&image);
+		munmap(image,oi.ObjectCompressedSize);
+		close(file);
+		if (ret!=PTP_RC_OK) {
+			printf ("error!\n");
+			ptp_perror(&params,ret);
+			if (ret==PTP_ERROR_IO) clear_stall(&ptp_usb, dev);
+		} else {
+			/* and delete from camera! */
+			printf("is done...\nDeleting from camera.\n");
+			CR(ptp_deleteobject(&params, handle,0),
+					"Could not delete object\n");
+			printf("Object 0x%08x (%s) deleted.\n",handle, oi.Filename);
+		}
+out:
+		;
 	}
+err:
 
-	close_camera(&ptp_usb, &params, dev);
-}
-
-void
-capture_image (int busn, int devn, short force)
-{
-	PTPParams params;
-	PTP_USB ptp_usb;
-	struct usb_device *dev;
-
-	printf("\nInitiating captue...\n");
-	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
-		return;
-	CR(ptp_initiatecapture (&params, 0x0, 0), "Could not capture\n");
-	/* NIKON is not responding until capture completed thus increasing
-	   timeout */
-	if (params.deviceinfo.VendorExtensionID==PTP_VENDOR_NIKON)
-		ptpcam_usb_timeout=8000;
+	ptpcam_usb_timeout=USB_TIMEOUT;
 	close_camera(&ptp_usb, &params, dev);
 }
 
@@ -875,6 +934,7 @@ list_properties (int busn, int devn, short force)
 #ifdef DEBUG
 	printf("dev %i\tbus %i\n",devn,busn);
 #endif
+#if 0
 	dev=find_device(busn,devn,force);
 	if (dev==NULL) {
 		fprintf(stderr,"could not find any device matching given "
@@ -886,6 +946,9 @@ list_properties (int busn, int devn, short force)
 	init_ptp_usb(&params, &ptp_usb, dev);
 	CR(ptp_opensession (&params,1),
 		"Could not open session!\n");
+#endif
+	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
+		return;
 	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
 		"Could not get device info\n");
 	printf("Camera: %s\n",params.deviceinfo.Model);
@@ -1077,8 +1140,11 @@ getset_property (int busn,int devn,uint16_t property,char* value,short force)
 			printf(".\n");
 		}
 	} else {
+		uint16_t r;
 		printf("Setting property value to '%s'\n",value);
-		CRE(set_property(&params, property, value, dpd.DataType));
+		r=(set_property(&params, property, value, dpd.DataType));
+		if (r!=PTP_RC_OK)
+		        ptp_perror(&params,r);
 	}
 	ptp_free_devicepropdesc(&dpd);
 	CR(ptp_closesession(&params), "Could not close session!\n"

@@ -360,6 +360,7 @@ ptp_usb_event (PTPParams* params, PTPContainer* event, int wait)
 		ptp_error (params,
 			"PTP: reading event an error 0x%04x occured", ret);
 		/* reading event error is nonfatal (for example timeout) */
+		return ret;
 	} 
 	/* if we read anything over interrupt endpoint it must be an event */
 	/* build an appropriate PTPContainer */
@@ -370,7 +371,7 @@ ptp_usb_event (PTPParams* params, PTPContainer* event, int wait)
 	event->Param2=dtoh32(usbevent.param2);
 	event->Param3=dtoh32(usbevent.param3);
 
-	return ret;
+	return PTP_RC_OK;
 }
 
 uint16_t

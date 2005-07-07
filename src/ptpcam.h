@@ -27,24 +27,9 @@
 #define CR(result,error) {						\
 			if((result)!=PTP_RC_OK) {			\
 				fprintf(stderr,"ERROR: "error);		\
-				close_usb(&ptp_usb, dev);		\
+				close_camera(&ptp_usb, &params, dev);   \
 				return;					\
 			}						\
-}
-
-/* Check value and Return -1 on error */
-#define CRR(result) {							\
-			if((result)!=PTP_RC_OK) {			\
-				return -1;				\
-			}						\
-}
-
-/* Check value and Report (PTP) Error if needed */
-#define CRE(result) {							\
-			uint16_t r;					\
-			r=(result);					\
-			if (r!=PTP_RC_OK)				\
-				ptp_perror(&params,r);			\
 }
 
 /* Check value and Continue on error */
