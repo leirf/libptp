@@ -1312,7 +1312,7 @@ main(int argc, char ** argv)
 	};
 	
 	while(1) {
-		opt = getopt_long (argc, argv, "LhlcipfroGgDd:s:v::", loptions, &option_index);
+		opt = getopt_long (argc, argv, "LhlcipfroGg:Dd:s:v::", loptions, &option_index);
 		if (opt==-1) break;
 	
 		switch (opt) {
