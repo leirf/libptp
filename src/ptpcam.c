@@ -25,6 +25,7 @@
 #include <getopt.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <utime.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -741,6 +742,7 @@ int overwrite)
 	PTPParams params;
 	PTP_USB ptp_usb;
 	struct usb_device *dev;
+	struct utimbuf timebuf;
 	int file;
 	PTPObjectInfo oi;
 	char *image;
@@ -782,6 +784,9 @@ int overwrite)
 	ret=ptp_getobject(&params,handle,&image);
 	munmap(image,oi.ObjectCompressedSize);
 	close(file);
+	timebuf.actime=oi.ModificationDate;
+	timebuf.modtime=oi.CaptureDate;
+	utime(filename,&timebuf);
 	if (ret!=PTP_RC_OK) {
 		printf ("error!\n");
 		ptp_perror(&params,ret);
@@ -799,6 +804,7 @@ get_all_files (int busn, int devn, short force, int overwrite)
 	PTPParams params;
 	PTP_USB ptp_usb;
 	struct usb_device *dev;
+	struct utimbuf timebuf;
 	int file;
 	PTPObjectInfo oi;
 	uint32_t handle;
@@ -858,6 +864,9 @@ get_all_files (int busn, int devn, short force, int overwrite)
 		ret=ptp_getobject(&params,handle,&image);
 		munmap(image,oi.ObjectCompressedSize);
 		close(file);
+		timebuf.actime=oi.ModificationDate;
+		timebuf.modtime=oi.CaptureDate;
+		utime(filename,&timebuf);
 		if (ret!=PTP_RC_OK) {
 			printf ("error!\n");
 			ptp_perror(&params,ret);

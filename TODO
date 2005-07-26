@@ -6,4 +6,5 @@ TODO:
 - check and improve (if necessary) build system
 
 - add batching support
-- preserve file creation time across downloading
+- implement range download/delete and so on
+- file upload

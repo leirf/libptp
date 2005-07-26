@@ -1,3 +1,5 @@
+2005-07-26 Mariusz Woloszyn
+	* ptpcam.c: file creation time prserved accross download
 2005-07-07 Mariusz Woloszyn
 	* ptp.c, ptpcam.c, ptpcam.h: better capture, better error handling,
 	  code polishing
