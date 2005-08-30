@@ -126,7 +126,7 @@ help()
 	"  -d, --delete-object=HANDLE   Delete object (file) by given handle\n"
 	"  -D, --delete-all-files       Delete all files form camera\n"
 	"  -c, --capture                Initiate capture\n"
-	"  --loop-capture=N		Perform N times capture/get/delete\n"
+	"  --loop-capture=N             Perform N times capture/get/delete\n"
 	"  -f, --force                  Talk to non PTP devices\n"
 	"  -v, --verbose                Be verbose (print more debug)\n"
 	"  -h, --help                   Print this help message\n"

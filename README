@@ -1,5 +1,5 @@
-libptp2 (c)2001-2004 Mariusz Woloszyn <emsi@ipartners.pl>
-ptpcam  (c)2001-2004 Mariusz Woloszyn <emsi@ipartners.pl>
+libptp2 (c)2001-2005 Mariusz Woloszyn <emsi@ipartners.pl>
+ptpcam  (c)2001-2005 Mariusz Woloszyn <emsi@ipartners.pl>
 
 =====================
 *About this software*
@@ -44,8 +44,8 @@ libptp2 is a library used to communicate with PTP devices like still
 imaging cameras.
 At the current stage you may use ptpcam tool boundled with libptp2 to perform
 some basic operations like downloading photos or setting camera properties.
-For other operations please use libgphoto2 (which contains libptp2 code)
-and gphoto2 frontend (visit http://www.gphoto.org).
+For other operations you might consider using libgphoto2 (which contains
+slightly modified libptp2 code) with gphoto2 (visit http://www.gphoto.org).
 
 
 ===================
@@ -156,18 +156,28 @@ cause harmful damage!!!
 *What next?*
 ============
 
-I guess that you'd like to tweak camera properties? ;)
-Use "ptpcam --list-properties" to list all available camera properties.
+I guess that you'd like to download images or tweak camera properties? ;)
+
+Use "ptpcam --get-all-files" to download all images from your camera.
+By default all images are copied to local folder and filename and creation
+time is preserved. By default the download operation skips a file if it
+finds one with the same name in local folder. This enables you to do
+quick-sync downloading only the newly captured files. Of course you can
+request to overwrite existing files passin --overwrite on command line.
+You may also download a specific file using --get-file=HANDLE providing object
+handle as a parameter (you can find it with --list-files).
+If ptpcam detects more than one camera you need to pass --bus=BUS-NUMBER and,
+or --dev=DEV-NUMBER arguments otherwise ptpcam tries to talk to first detected
+camera. If you specify only bus or dev number ptpcam talks to first matching
+camera.
+
+To list all available camera properties use "ptpcam --list-properties"
 Unfortunately if you have bought a high-end camera or a very expensive PTP
 camera it DOES NOT mean that it supports setting any properties. The problem
 is that manufacturers do not specify in documentation what properties or
 operations are supported by the given camera. In most cases you never know
 until you buy the camera. [I'll try to provide a list of supported camera
 properties and operations on libptp.sf.net]
-If ptpcam detects more than one camera you need to pass --bus=BUS-NUMBER and,
-or --dev=DEV-NUMBER arguments otherwise ptpcam tries to talk to first detected
-camera. If you specify only bus or dev number ptpcam talks to first matching
-camera.
 
 Let's say that you get something like this:
 
@@ -183,7 +193,6 @@ but you still can try to list its value:
 root@emsi(chroot):~# ptpcam --show-property=5001
 Camera: DX3500 Digital Camera
 Property 'Battery Level'
-Data type is 0x0002
 Current value is 100
 Factory default value is 100
 The property is read only, enumerated. Allowed values are:
@@ -193,10 +202,8 @@ The property is read only, enumerated. Allowed values are:
 
 As you can see --show-property argument does not require 0x, that's for your
 convenience. ;)
-The output of this command is quite verbose. It tells you about the Data
-type (in this case 0x0002 means UINT8, if you want to know what are those
-numbers read ptp.h and look for PTP_DTC_* defines), current value, factory
-default value and the property type. The property type may vary among
+The output of this command is quite verbose. It tells you about Current value,
+Factory default value and the property type. The property type may vary among
 different cameras! In this camera 'Battery Level' is read only and
 enumerated. Allowed values are 0, 10 and 100 which (more or less) means:
 0 - low battery lever (may shut down immediately), 10 - medium battery
@@ -243,7 +250,7 @@ although for many of them the type (enumerated or range) and value meaning
 are NOT specified by the PTP standard and may vary among different cameras!
 The properties starting with 0xd0 are PTP extension (in this case EK means
 Eastman Kodak extension) and in most cases are not known to public at all.
-In most cases you will have to reverse-engineer their meaning (I'm eager to
+Probably you will have to reverse-engineer their meaning (I'm eager to
 receive a feedback from you in such case! ;).
 
 
