@@ -1,4 +1,10 @@
 
+Potwierdzenie delete.
+Sciaganie z kryterium daty (z danej daty, z tego samego dnia co okreslona
+fota itp.).
+Sprawdzanie rozmiaru (ile wszystkie, ile kryterium, czy wystarczy miejsca na
+dysku).
+
 TODO:
 
 - check for free() all malloced memory ( consider custom *alloc() wrappers )
