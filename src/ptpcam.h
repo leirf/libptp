@@ -80,7 +80,7 @@
 #define PTPCAM_PRINT_HEX	00
 #define PTPCAM_PRINT_DEC	01
 
-/* filename oferwrite */
+/* filename overwrite */
 #define OVERWRITE_EXISTING	1
 #define	SKIP_IF_EXISTS		0
 

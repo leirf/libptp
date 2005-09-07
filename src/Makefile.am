@@ -12,7 +12,8 @@ DISTCLEANFILES = libptp-stdint.h libptp-endian.h
 
 if PTPCAM
 bin_PROGRAMS = ptpcam
-ptpcam_SOURCES = ptpcam.c ptpcam.h
+ptpcam_SOURCES = ptpcam.c ptpcam.h myusb.c
 ptpcam_LDADD = -lptp2 @PTPCAM_LDFLAGS@
+ptpcam_DEPENDANCIES = libptp2.la
 ptpcam_CFLAGS = @PTPCAM_CFLAGS@
 endif

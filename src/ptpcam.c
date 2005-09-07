@@ -1,4 +1,3 @@
-
 /* ptpcam.c
  *
  * Copyright (C) 2001-2005 Mariusz Woloszyn <emsi@ipartners.pl>
@@ -148,15 +147,15 @@ ptp_read_func (unsigned char *bytes, unsigned int size, void *data)
 		else
 			toread = rbytes;
 		result=usb_bulk_read(ptp_usb->handle, ptp_usb->inep,(char *)bytes, toread,ptpcam_usb_timeout);
-/* sometimes retry might help */
-		if (result==0 || result==EPIPE)
+		/* sometimes retry might help */
+		if (result==0)
 			result=usb_bulk_read(ptp_usb->handle, ptp_usb->inep,(char *)bytes, toread,ptpcam_usb_timeout);
 		if (result < 0)
 			break;
 		rbytes-=PTPCAM_USB_URB;
 	} while (rbytes>0);
 
-	if (result > 0) {
+	if (result >= 0) {
 		return (PTP_RC_OK);
 	}
 	else 

@@ -1,6 +1,6 @@
 /* ptp.c
  *
- * Copyright (C) 2001-2004 Mariusz Woloszyn <emsi@ipartners.pl>
+ * Copyright (C) 2001-2005 Mariusz Woloszyn <emsi@ipartners.pl>
  *
  *  This file is part of libptp2.
  *

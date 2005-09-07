@@ -1,3 +1,12 @@
+2005-09-07 Mariusz Woloszyn
+	* Initial 1.1.0 commit
+	* ptpcam.c: fixed minor bug on usb read
+	* ptpcam.h: fixed typo
+	* myusb.c: added private usb bulk read/write code
+	* configure.in, Makefile.am: updated version added new files, fixed
+	parralel build problem (thanks to Daniel Black for patch)
+
+
 2005-07-26 Mariusz Woloszyn
 	* ptpcam.c: file creation time prserved accross download
 2005-07-07 Mariusz Woloszyn
