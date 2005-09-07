@@ -102,6 +102,18 @@ then
 	fi
 fi
 
+hostos=any
+case $host in
+	*-linux*)
+	hostos=Linux
+	AC_DEFINE([LINUX_OS], [], [Linux OS])
+	;;
+	*)
+	AC_DEFINE([UNKNOWN_OS], [], [Unknown OS])
+	;;
+esac
+AM_CONDITIONAL(LINUX_OS, test "x$hostos" = "xLinux")
+
 dnl Create a header file containing NetBSD-style byte swapping macros
 AC_NEED_BYTEORDER_H(src/libptp-endian.h)
 dnl Create a stdint.h-like file containing size-specific integer definitions

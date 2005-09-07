@@ -16,6 +16,8 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#include <config.h>
+#ifdef LINUX_OS
 
 /*
  * libusb has changed the kernel interface used for bulk read/write operations.
@@ -79,7 +81,6 @@ struct usb_dev_handle {
 
 int myusb_bulk_write(usb_dev_handle *dev, int ep, char *bytes, int length,
 	int timeout);
-
 int myusb_bulk_write(usb_dev_handle *dev, int ep, char *bytes, int length,
 	int timeout)
 {
@@ -110,7 +111,6 @@ int myusb_bulk_write(usb_dev_handle *dev, int ep, char *bytes, int length,
 
 int myusb_bulk_read(usb_dev_handle *dev, int ep, char *bytes, int size,
 	int timeout);
-
 int myusb_bulk_read(usb_dev_handle *dev, int ep, char *bytes, int size,
 	int timeout)
 {
@@ -138,6 +138,4 @@ int myusb_bulk_read(usb_dev_handle *dev, int ep, char *bytes, int size,
 
 	return retrieved;
 }
-
-
-
+#endif /* LINUX_OS */

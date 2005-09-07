@@ -1,4 +1,11 @@
 2005-09-07 Mariusz Woloszyn
+	* configure.in, Makefile.am: use myusb only on Linux
+	* ptpcam.c: use myusb interface instead of libusb in case of Linux,
+	  beside that it works where URB fails it is also abou 20% to 50%
+	  faster!!!
+	* ptpcam.h: define myusb interface
+
+2005-09-07 Mariusz Woloszyn
 	* Initial 1.1.0 commit
 	* ptpcam.c: fixed minor bug on usb read
 	* ptpcam.h: fixed typo

@@ -1,4 +1,3 @@
-
 /* ptpcam.h
  *
  * Copyright (C) 2001-2005 Mariusz Woloszyn <emsi@ipartners.pl>
@@ -17,7 +16,20 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
+#ifndef __PTPCAM_H__
+#define __PTPCAM_H__
 
+#ifdef LINUX_OS
+#define USB_BULK_READ myusb_bulk_read
+#define USB_BULK_WRITE myusb_bulk_write
+int myusb_bulk_read(usb_dev_handle *dev, int ep, char *bytes, int size,
+	int timeout);
+int myusb_bulk_write(usb_dev_handle *dev, int ep, char *bytes, int length,
+	int timeout);
+#else
+#define USB_BULK_READ usb_bulk_read
+#define USB_BULK_WRITE usb_bulk_write
+#endif
 
 /*
  * macros
@@ -133,3 +145,5 @@ int usb_get_endpoint_status(PTP_USB* ptp_usb, int ep, uint16_t* status);
 int usb_clear_stall_feature(PTP_USB* ptp_usb, int ep);
 int open_camera (int busn, int devn, short force, PTP_USB *ptp_usb, PTPParams *params, struct usb_device **dev);
 void close_camera (PTP_USB *ptp_usb, PTPParams *params, struct usb_device *dev);
+
+#endif /* __PTPCAM_H__ */

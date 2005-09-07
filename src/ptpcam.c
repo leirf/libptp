@@ -17,6 +17,8 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <config.h>
+#include "ptp.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,7 +51,6 @@
 #  define N_(String) (String)
 #endif
 
-#include "ptp.h"
 #include "ptpcam.h"
 
 /* some defines comes here */
@@ -146,10 +147,10 @@ ptp_read_func (unsigned char *bytes, unsigned int size, void *data)
 			toread = PTPCAM_USB_URB;
 		else
 			toread = rbytes;
-		result=usb_bulk_read(ptp_usb->handle, ptp_usb->inep,(char *)bytes, toread,ptpcam_usb_timeout);
+		result=USB_BULK_READ(ptp_usb->handle, ptp_usb->inep,(char *)bytes, toread,ptpcam_usb_timeout);
 		/* sometimes retry might help */
 		if (result==0)
-			result=usb_bulk_read(ptp_usb->handle, ptp_usb->inep,(char *)bytes, toread,ptpcam_usb_timeout);
+			result=USB_BULK_READ(ptp_usb->handle, ptp_usb->inep,(char *)bytes, toread,ptpcam_usb_timeout);
 		if (result < 0)
 			break;
 		rbytes-=PTPCAM_USB_URB;
@@ -171,7 +172,7 @@ ptp_write_func (unsigned char *bytes, unsigned int size, void *data)
 	int result;
 	PTP_USB *ptp_usb=(PTP_USB *)data;
 
-	result=usb_bulk_write(ptp_usb->handle,ptp_usb->outep,(char *)bytes,size,ptpcam_usb_timeout);
+	result=USB_BULK_WRITE(ptp_usb->handle,ptp_usb->outep,(char *)bytes,size,ptpcam_usb_timeout);
 	if (result >= 0)
 		return (PTP_RC_OK);
 	else 
@@ -189,9 +190,9 @@ ptp_check_int (unsigned char *bytes, unsigned int size, void *data)
 
 	if (verbose) printf ("Awaiting event...\n");
 
-	result=usb_bulk_read(ptp_usb->handle, ptp_usb->intep,(char *)bytes,size,ptpcam_usb_timeout);
+	result=USB_BULK_READ(ptp_usb->handle, ptp_usb->intep,(char *)bytes,size,ptpcam_usb_timeout);
 	if (result==0)
-		result = usb_bulk_read(ptp_usb->handle, ptp_usb->intep,(char *) bytes, size, ptpcam_usb_timeout);
+		result = USB_BULK_READ(ptp_usb->handle, ptp_usb->intep,(char *) bytes, size, ptpcam_usb_timeout);
 	if (result >= 0) {
 		return (PTP_RC_OK);
 	} else {
