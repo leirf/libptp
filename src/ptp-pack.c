@@ -588,10 +588,10 @@ ptp_unpack_DPD (PTPParams *params, char* data, PTPDevicePropDesc *dpd)
 			MCTVA(uint16_t,dtoh16a,dpd->FORM.Enum.SupportedValue,N);
 			break;
 			case PTP_DTC_INT32:
-			MCTVA(int32_t,dtoh16a,dpd->FORM.Enum.SupportedValue,N);
+			MCTVA(int32_t,dtoh32a,dpd->FORM.Enum.SupportedValue,N);
 			break;
 			case PTP_DTC_UINT32:
-			MCTVA(uint32_t,dtoh16a,dpd->FORM.Enum.SupportedValue,N);
+			MCTVA(uint32_t,dtoh32a,dpd->FORM.Enum.SupportedValue,N);
 			break;
 			case PTP_DTC_STR:
 			{
