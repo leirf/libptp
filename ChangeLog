@@ -1,3 +1,7 @@
+2005-09-29 Mariusz Woloszyn
+	* configure.in: better libusb version detection implemented
+	* src/ptp-pack.c: silence gcc warnings
+
 2005-09-07 Mariusz Woloszyn
 	* configure.in, Makefile.am: use myusb only on Linux
 	* ptpcam.c: use myusb interface instead of libusb in case of Linux,
