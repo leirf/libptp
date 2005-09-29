@@ -440,7 +440,7 @@ ptp_unpack_DPV (PTPParams *params, char* data, void** value, uint16_t datatype)
 		case PTP_DTC_STR:
 		{
 			uint8_t len;
-			(char *)(*value)=ptp_unpack_string(params,data,0,&len);
+			*(char **)&(*value)=ptp_unpack_string(params,data,0,&len);
 			break;
 		}
 	}
@@ -513,10 +513,10 @@ ptp_unpack_DPD (PTPParams *params, char* data, PTPDevicePropDesc *dpd)
 		/* XXX: other int types are unimplemented */
 		/* XXX: int arrays are unimplemented also */
 		case PTP_DTC_STR:
-			(char *)dpd->FactoryDefaultValue = ptp_unpack_string
+			*(char **)&dpd->FactoryDefaultValue = ptp_unpack_string
 				(params,data,PTP_dpd_FactoryDefaultValue,&len);
 			totallen=len*2+1;
-			(char *)dpd->CurrentValue = ptp_unpack_string
+			*(char **)&dpd->CurrentValue = ptp_unpack_string
 				(params, data, PTP_dpd_FactoryDefaultValue + 
 				totallen, &len);
 			totallen+=len*2+1;
@@ -598,7 +598,7 @@ ptp_unpack_DPD (PTPParams *params, char* data, PTPDevicePropDesc *dpd)
 			int i;
 			for(i=0;i<N;i++)
 			{
-				(char *)dpd->FORM.Enum.SupportedValue[i]=
+				*(char **)&dpd->FORM.Enum.SupportedValue[i]=
 					ptp_unpack_string
 					(params,data,PTP_dpd_FactoryDefaultValue
 					+totallen,&len);
