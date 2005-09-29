@@ -86,20 +86,50 @@ then
 		LDFLAGS="$LDFLAGS_save"
 	fi
 	
-	if test "$LIBUSB_VER" \< "0.1.08"; then
-		AC_ERROR([
+	LUSBMAJOR=${LIBUSB_VER%%.*}
+	LIBUSB_VER=${LIBUSB_VER#${LUSBMAJOR}.}
+	LUSBMINOR=${LIBUSB_VER%.*}
+	LUSBPLEVL=${LIBUSB_VER#${LUSBMINOR}.}
+	echo "LUSBMAJOR=$LUSBMAJOR"
+	echo "LUSBMINOR=$LUSBMINOR"
+	echo "LUSBPLEVL=$LUSBPLEVL"
+	#We require exactly 0 major version here
+	if test "$LUSBMAJOR" -eq "0"; then
+		#We require at least 1 minor version number
+		if test "$LUSBMINOR" -eq "1"; then
+			#We requite at least patchlevel 8 and not 10
+			case "$LUSBPLEVL" in
+			[0-7])
+				AC_ERROR([
 *** You need at least version 0.1.8 of the libusb library to build ptpcam.
 *** Download and istall it from http://sourceforge.net/projects/libusb/ or
 *** use --disable-ptpcam option to build without ptpcam tool.
-		])
-	fi
-	if test "$LIBUSB_VER" = "0.1.10"; then
-		AC_MSG_WARN([
+				])
+				;;
+			10)
+				AC_MSG_WARN([
 *** WARNING!!!
 *** libusb-0.1.10 is known to be broken!
 *** Pleasae use older or more recent version or procede at YOUR OWN RISK!
+				])
+				;;
+			esac
+		elif test "$LUSBMINOR" -lt "1"; then
+			AC_ERROR([
+*** You need at least version 0.1.8 of the libusb library to build ptpcam.
+*** Download and istall it from http://sourceforge.net/projects/libusb/ or
+*** use --disable-ptpcam option to build without ptpcam tool.
+			])
+		fi
+	else
+		AC_ERROR([
+*** You need the 0 line of libusb which is at least 0.1.8. 
+*** Higher versions might not be compatible! Download and istall
+*** libusb version 0.X.X from http://sourceforge.net/projects/libusb/ or
+*** use --disable-ptpcam option to build without ptpcam tool.
 		])
 	fi
+
 fi
 
 hostos=any
