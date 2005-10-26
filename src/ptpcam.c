@@ -888,22 +888,7 @@ list_operations (int busn, int devn, short force)
 	const char* name;
 
 	printf("\nListing supported operations...\n");
-#if 0
-#ifdef DEBUG
-	printf("dev %i\tbus %i\n",devn,busn);
-#endif
-	dev=find_device(busn,devn,force);
-	if (dev==NULL) {
-		fprintf(stderr,"could not find any device matching given "
-		"bus/dev numbers\n");
-		exit(-1);
-	}
-	find_endpoints(dev,&ptp_usb.inep,&ptp_usb.outep,&ptp_usb.intep);
 
-	init_ptp_usb(&params, &ptp_usb, dev);
-	CR(ptp_opensession (&params,1),
-		"Could not open session!\n");
-#endif
 	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
 		return;
 	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
@@ -915,15 +900,13 @@ list_operations (int busn, int devn, short force)
 			params.deviceinfo.OperationsSupported[i]);
 
 		if (name==NULL)
-			printf("  0x%04x: 0x%04x\n",
-				params.deviceinfo.OperationsSupported[i],
+			printf("  0x%04x: UNKNOWN\n",
 				params.deviceinfo.OperationsSupported[i]);
 		else
 			printf("  0x%04x: %s\n",
 				params.deviceinfo.OperationsSupported[i],name);
 	}
-	CR(ptp_closesession(&params), "Could not close session!\n");
-	close_usb(&ptp_usb, dev);
+	close_camera(&ptp_usb, &params, dev);
 
 }
 
@@ -937,22 +920,7 @@ list_properties (int busn, int devn, short force)
 	int i;
 
 	printf("\nListing properties...\n");
-#ifdef DEBUG
-	printf("dev %i\tbus %i\n",devn,busn);
-#endif
-#if 0
-	dev=find_device(busn,devn,force);
-	if (dev==NULL) {
-		fprintf(stderr,"could not find any device matching given "
-		"bus/dev numbers\n");
-		exit(-1);
-	}
-	find_endpoints(dev,&ptp_usb.inep,&ptp_usb.outep,&ptp_usb.intep);
 
-	init_ptp_usb(&params, &ptp_usb, dev);
-	CR(ptp_opensession (&params,1),
-		"Could not open session!\n");
-#endif
 	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
 		return;
 	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
@@ -966,12 +934,10 @@ list_properties (int busn, int devn, short force)
 				params.deviceinfo.DevicePropertiesSupported[i],
 				propdesc);
 		else
-			printf("  0x%04x: 0x%04x\n",
-				params.deviceinfo.DevicePropertiesSupported[i],
+			printf("  0x%04x: UNKNOWN\n",
 				params.deviceinfo.DevicePropertiesSupported[i]);
 	}
-	CR(ptp_closesession(&params), "Could not close session!\n");
-	close_usb(&ptp_usb, dev);
+	close_camera(&ptp_usb, &params, dev);
 }
 
 short
@@ -1066,20 +1032,10 @@ getset_property (int busn,int devn,uint16_t property,char* value,short force)
 	const char* propdesc;
 
 	printf ("\n");
-#ifdef DEBUG
-	printf("dev %i\tbus %i\n",devn,busn);
-#endif
-	dev=find_device(busn,devn,force);
-	if (dev==NULL) {
-		fprintf(stderr,"could not find any device matching given "
-		"bus/dev numbers\n");
-		exit(-1);
-	}
-	find_endpoints(dev,&ptp_usb.inep,&ptp_usb.outep,&ptp_usb.intep);
 
-	init_ptp_usb(&params, &ptp_usb, dev);
-	CR(ptp_opensession (&params,1),
-		"Could not open session!\nTry to reset the camera.\n");
+	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
+		return;
+
 	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
 		"Could not get device info\nTry to reset the camera.\n");
 	propdesc=ptp_get_property_name(&params,property);
@@ -1095,7 +1051,7 @@ getset_property (int busn,int devn,uint16_t property,char* value,short force)
 			"Try to reset the camera.\n");
 		return;
 	}
-	printf("Property '%s'\n",propdesc);
+	printf("Property '%s'\n",propdesc==NULL?"UNKNOWN":propdesc);
 	memset(&dpd,0,sizeof(dpd));
 	CR(ptp_getdevicepropdesc(&params,property,&dpd),
 		"Could not get device property description!\n"
