@@ -482,8 +482,7 @@ show_info (int busn, int devn, short force)
 	printf("  manufacturer: %s\n",params.deviceinfo.Manufacturer);
 	printf("  serial number: '%s'\n",params.deviceinfo.SerialNumber);
 	printf("  device version: %s\n",params.deviceinfo.DeviceVersion);
-	printf("  extension ID: 0x%08x\n",
-			(unsigned int) params.deviceinfo.VendorExtensionID);
+	printf("  extension ID: 0x%08lx\n",params.deviceinfo.VendorExtensionID);
 	printf("  extension description: %s\n",
 					params.deviceinfo.VendorExtensionDesc);
 	printf("  extension version: 0x%04x\n",
@@ -518,7 +517,7 @@ capture_image (int busn, int devn, short force)
 	}
 		
 	while (event.Code==PTP_EC_ObjectAdded) {
-		printf ("Object added 0x%08x\n", (unsigned int) event.Param1);
+		printf ("Object added 0x%08lx\n", event.Param1);
 		if (ptp_usb_event_wait(&params, &event)!=PTP_RC_OK)
 			goto err;
 		if (verbose) printf ("Event received %08x, ret=%x\n", event.Code, ret);
@@ -577,8 +576,7 @@ loop_capture (int busn, int devn, short force, int n,  int overwrite)
 		}
 			
 		while (event.Code==PTP_EC_ObjectAdded) {
-			printf ("Object added 0x%08x\n",
-					(unsigned int) event.Param1);
+			printf ("Object added 0x%08lx\n",event.Param1);
 			handle=event.Param1;
 			if (ptp_usb_event_wait(&params, &event)!=PTP_RC_OK)
 				goto err;
@@ -589,8 +587,7 @@ loop_capture (int busn, int devn, short force, int n,  int overwrite)
 download:	
 
 		memset(&oi, 0, sizeof(PTPObjectInfo));
-		if (verbose) printf ("Downloading: 0x%08x\n",
-					(unsigned int) handle);
+		if (verbose) printf ("Downloading: 0x%08lx\n",handle);
 		if ((ret=ptp_getobjectinfo(&params,handle, &oi))!=PTP_RC_OK){
 			fprintf(stderr,"ERROR: Could not get object info\n");
 			ptp_perror(&params,ret);
@@ -637,7 +634,7 @@ download:
 			printf("is done...\nDeleting from camera.\n");
 			CR(ptp_deleteobject(&params, handle,0),
 					"Could not delete object\n");
-			printf("Object 0x%08x (%s) deleted.\n",(unsigned int) handle, oi.Filename);
+			printf("Object 0x%08lx (%s) deleted.\n",handle, oi.Filename);
 		}
 out:
 		;
@@ -665,14 +662,14 @@ list_files (int busn, int devn, short force)
 	printf("Camera: %s\n",params.deviceinfo.Model);
 	CR(ptp_getobjecthandles (&params,0xffffffff, 0x000000, 0x000000,
 		&params.handles),"Could not get object handles\n");
-	printf("Handler:        size: \tname:\n");
+	printf("Handler:           size: \tname:\n");
 	for (i = 0; i < params.handles.n; i++) {
 		CR(ptp_getobjectinfo(&params,params.handles.Handler[i],
 			&oi),"Could not get object info\n");
 		if (oi.ObjectFormat == PTP_OFC_Association)
 			continue;
-		printf("0x%08x: % 9i\t%s\n",params.handles.Handler[i],
-			oi.ObjectCompressedSize, oi.Filename);
+		printf("0x%08lx: % 12u\t%s\n",params.handles.Handler[i],
+			(unsigned) oi.ObjectCompressedSize, oi.Filename);
 	}
 	printf("\n");
 	close_camera(&ptp_usb, &params, dev);
@@ -691,7 +688,7 @@ delete_object (int busn, int devn, short force, uint32_t handle)
 	CR(ptp_getobjectinfo(&params,handle,&oi),
 		"Could not get object info\n");
 	CR(ptp_deleteobject(&params, handle,0), "Could not delete object\n");
-	printf("\nObject 0x%08x (%s) deleted.\n",handle, oi.Filename);
+	printf("\nObject 0x%08lx (%s) deleted.\n",handle, oi.Filename);
 	close_camera(&ptp_usb, &params, dev);
 }
 
@@ -717,7 +714,7 @@ delete_all_files (int busn, int devn, short force)
 	for (i=0; i<params.handles.n; i++) {
 		handle=params.handles.Handler[i];
 		if ((ret=ptp_getobjectinfo(&params,handle, &oi))!=PTP_RC_OK){
-			fprintf(stderr,"Handle: 0x%08x\n",handle);
+			fprintf(stderr,"Handle: 0x%08lx\n",handle);
 			fprintf(stderr,"ERROR: Could not get object info\n");
 			ptp_perror(&params,ret);
 			if (ret==PTP_ERROR_IO) clear_stall(&ptp_usb, dev);
@@ -727,7 +724,7 @@ delete_all_files (int busn, int devn, short force)
 			continue;
 		CR(ptp_deleteobject(&params, handle,0),
 				"Could not delete object\n");
-		printf("Object 0x%08x (%s) deleted.\n",handle, oi.Filename);
+		printf("Object 0x%08lx (%s) deleted.\n",handle, oi.Filename);
 	}
 	close_camera(&ptp_usb, &params, dev);
 }
@@ -754,7 +751,7 @@ int overwrite)
 	printf("Camera: %s\n",params.deviceinfo.Model);
 
 	if (verbose)
-		printf ("Handle: 0x%08x\n",handle);
+		printf ("Handle: 0x%08lx\n",handle);
 	CR(ptp_getobjectinfo(&params,handle, &oi),
 		"Could not get object info\n");
 	if (oi.ObjectFormat == PTP_OFC_Association)
@@ -825,7 +822,7 @@ get_all_files (int busn, int devn, short force, int overwrite)
 		memset(&oi, 0, sizeof(PTPObjectInfo));
 		handle=params.handles.Handler[i];
 		if (verbose)
-			printf ("Handle: 0x%08x\n",handle);
+			printf ("Handle: 0x%08lx\n",handle);
 		if ((ret=ptp_getobjectinfo(&params,handle, &oi))!=PTP_RC_OK){
 			fprintf(stderr,"ERROR: Could not get object info\n");
 			ptp_perror(&params,ret);
@@ -965,14 +962,14 @@ print_propval (uint16_t datatype, void* value, short hex)
 				printf("%hi",*(uint16_t*)value);
 			return 0;
 		case PTP_DTC_INT32:
-			printf("%i",*(int32_t*)value);
+			printf("%li",*(int32_t*)value);
 			return 0;
 		case PTP_DTC_UINT32:
 			if (hex==PTPCAM_PRINT_HEX)
-				printf("0x%08X (%i)",*(uint32_t*)value,
+				printf("0x%08lX (%lu)",*(uint32_t*)value,
 					*(uint32_t*)value);
 			else
-				printf("%i",*(uint32_t*)value);
+				printf("%lu",*(uint32_t*)value);
 			return 0;
 		case PTP_DTC_STR:
 			printf("\"%s\"",(char *)value);
