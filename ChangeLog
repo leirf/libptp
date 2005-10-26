@@ -1,4 +1,7 @@
 2005-10-26 Mariusz Woloszyn
+	* configure.in: added --with-libusbdir
+
+2005-10-26 Mariusz Woloszyn
 	* src/ptpcam.c: add call to usb_set_configuration(); it's a good
 	practice and renders windows port working :)
 

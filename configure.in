@@ -50,6 +50,18 @@ AC_FUNC_MKTIME
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([memset strchr strdup strtol getopt_long])
 
+hostos=any
+case $host in
+	*-linux*)
+	hostos=Linux
+	AC_DEFINE([LINUX_OS], [], [Linux OS])
+	;;
+	*)
+	AC_DEFINE([UNKNOWN_OS], [], [Unknown OS])
+	;;
+esac
+AM_CONDITIONAL(LINUX_OS, test "x$hostos" = "xLinux")
+
 build_ptpcam=yes
 #check for --disable-ptpcam
 AC_ARG_ENABLE([ptpcam],
@@ -65,6 +77,26 @@ AM_CONDITIONAL(PTPCAM, test "x$build_ptpcam" = "xyes")
 # Check for libusb
 if test "x$build_ptpcam" = "xyes"
 then
+AC_ARG_WITH([libusbdir],[
+	AC_HELP_STRING([--with-libusbdir=<path>],
+			[libusb installation prefix path])
+],[
+	PTPCAM_CFLAGS="-I$withval/include"
+	PTPCAM_LDFLAGS="-L$withval/lib -lusb"
+	AC_SUBST(PTPCAM_CFLAGS)
+	AC_SUBST(PTPCAM_LDFLAGS)
+	CFLAGS_save="$CFLAGS"
+	LDFLAGS_save="$LDFLAGS"
+	CFLAGS="$CFLAGS $PTPCAM_CFLAGS"
+	LDFLAGS="$LDFLAGS $PTPCAM_LDFLAGS"
+	AC_CHECK_LIB(usb,usb_busses,
+		[CFLAGS="$CFLAGS_save";LDFLAGS="$LDFLAGS_save"],
+		[AC_ERROR([
+*** You need at least version 0.1.8 of the libusb library to build ptpcam.
+*** Download and istall it from http://sourceforge.net/projects/libusb/ or
+*** use --disable-ptpcam option to build without ptpcam tool.
+		])])
+],[
 	AC_PATH_PROG(LIBUSB_CONFIG,libusb-config)
 	if test -n "${LIBUSB_CONFIG}"; then
 		PTPCAM_CFLAGS="`$LIBUSB_CONFIG --cflags`"
@@ -128,18 +160,7 @@ then
 	fi
 
 fi
-
-hostos=any
-case $host in
-	*-linux*)
-	hostos=Linux
-	AC_DEFINE([LINUX_OS], [], [Linux OS])
-	;;
-	*)
-	AC_DEFINE([UNKNOWN_OS], [], [Unknown OS])
-	;;
-esac
-AM_CONDITIONAL(LINUX_OS, test "x$hostos" = "xLinux")
+])
 
 dnl Create a header file containing NetBSD-style byte swapping macros
 AC_NEED_BYTEORDER_H(src/libptp-endian.h)
