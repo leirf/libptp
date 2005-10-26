@@ -1,3 +1,12 @@
+2005-10-26 Mariusz Woloszyn
+	* src/ptpcam.c: add call to usb_set_configuration(); it's a good
+	practice and renders windows port working :)
+
+2005-09-29 Mariusz Woloszyn
+	* src/ptp-pack.c: fix a bug that caused improper display of 32bit
+	  enumerated properties, thanks to Alexander Oelzant for pointing
+	  out the bug
+
 2005-09-29 Mariusz Woloszyn
 	* configure.in: better libusb version detection implemented
 	* src/ptp-pack.c: silence gcc warnings

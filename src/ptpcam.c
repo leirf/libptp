@@ -251,6 +251,7 @@ init_ptp_usb (PTPParams* params, PTP_USB* ptp_usb, struct usb_device* dev)
 			exit(0);
 		}
 		ptp_usb->handle=device_handle;
+		usb_set_configuration(device_handle, dev->config->bConfigurationValue);
 		usb_claim_interface(device_handle,
 			dev->config->interface->altsetting->bInterfaceNumber);
 	}
@@ -430,8 +431,6 @@ list_devices(short force)
 			USB_CLASS_PTP)||force)
 		if (dev->descriptor.bDeviceClass!=USB_CLASS_HUB)
 		{
-			int n;
-			struct usb_endpoint_descriptor *ep;
 			PTPParams params;
 			PTP_USB ptp_usb;
 			PTPDeviceInfo deviceinfo;
@@ -441,8 +440,6 @@ list_devices(short force)
 				printf("bus/dev\tvendorID/prodID\tdevice model\n");
 				found=1;
 			}
-			ep = dev->config->interface->altsetting->endpoint;
-			n=dev->config->interface->altsetting->bNumEndpoints;
 
 			find_endpoints(dev,&ptp_usb.inep,&ptp_usb.outep,
 				&ptp_usb.intep);
