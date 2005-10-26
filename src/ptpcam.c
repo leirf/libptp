@@ -483,7 +483,7 @@ show_info (int busn, int devn, short force)
 	printf("  serial number: '%s'\n",params.deviceinfo.SerialNumber);
 	printf("  device version: %s\n",params.deviceinfo.DeviceVersion);
 	printf("  extension ID: 0x%08x\n",
-					params.deviceinfo.VendorExtensionID);
+			(unsigned int) params.deviceinfo.VendorExtensionID);
 	printf("  extension description: %s\n",
 					params.deviceinfo.VendorExtensionDesc);
 	printf("  extension version: 0x%04x\n",
@@ -518,7 +518,7 @@ capture_image (int busn, int devn, short force)
 	}
 		
 	while (event.Code==PTP_EC_ObjectAdded) {
-		printf ("Object added 0x%08x\n", event.Param1);
+		printf ("Object added 0x%08x\n", (unsigned int) event.Param1);
 		if (ptp_usb_event_wait(&params, &event)!=PTP_RC_OK)
 			goto err;
 		if (verbose) printf ("Event received %08x, ret=%x\n", event.Code, ret);
@@ -577,7 +577,8 @@ loop_capture (int busn, int devn, short force, int n,  int overwrite)
 		}
 			
 		while (event.Code==PTP_EC_ObjectAdded) {
-			printf ("Object added 0x%08x\n", event.Param1);
+			printf ("Object added 0x%08x\n",
+					(unsigned int) event.Param1);
 			handle=event.Param1;
 			if (ptp_usb_event_wait(&params, &event)!=PTP_RC_OK)
 				goto err;
@@ -588,7 +589,8 @@ loop_capture (int busn, int devn, short force, int n,  int overwrite)
 download:	
 
 		memset(&oi, 0, sizeof(PTPObjectInfo));
-		if (verbose) printf ("Downloading: 0x%08x\n",handle);
+		if (verbose) printf ("Downloading: 0x%08x\n",
+					(unsigned int) handle);
 		if ((ret=ptp_getobjectinfo(&params,handle, &oi))!=PTP_RC_OK){
 			fprintf(stderr,"ERROR: Could not get object info\n");
 			ptp_perror(&params,ret);
@@ -635,7 +637,7 @@ download:
 			printf("is done...\nDeleting from camera.\n");
 			CR(ptp_deleteobject(&params, handle,0),
 					"Could not delete object\n");
-			printf("Object 0x%08x (%s) deleted.\n",handle, oi.Filename);
+			printf("Object 0x%08x (%s) deleted.\n",(unsigned int) handle, oi.Filename);
 		}
 out:
 		;
