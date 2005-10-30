@@ -93,9 +93,10 @@ ptp_error (PTPParams *params, const char *format, ...)
 uint16_t
 ptp_usb_sendreq (PTPParams* params, PTPContainer* req)
 {
-	uint16_t ret;
-	PTPUSBBulkContainer usbreq;
+	static uint16_t ret;
+	static PTPUSBBulkContainer usbreq;
 
+	PTP_CNT_INIT(usbreq);
 	/* build appropriate USB container */
 	usbreq.length=htod32(PTP_USB_BULK_REQ_LEN-
 		(sizeof(uint32_t)*(5-req->Nparam)));
@@ -124,8 +125,8 @@ uint16_t
 ptp_usb_senddata (PTPParams* params, PTPContainer* ptp,
 			unsigned char *data, unsigned int size)
 {
-	uint16_t ret;
-	PTPUSBBulkContainer usbdata;
+	static uint16_t ret;
+	static PTPUSBBulkContainer usbdata;
 
 	/* build appropriate USB container */
 	usbdata.length=htod32(PTP_USB_BULK_HDR_LEN+size);
@@ -162,15 +163,15 @@ uint16_t
 ptp_usb_getdata (PTPParams* params, PTPContainer* ptp,
 		unsigned char **data)
 {
-	uint16_t ret;
-	PTPUSBBulkContainer usbdata;
+	static uint16_t ret;
+	static PTPUSBBulkContainer usbdata;
 
 	PTP_CNT_INIT(usbdata);
 #if 0
 	if (*data!=NULL) return PTP_ERROR_BADPARAM;
 #endif
 	do {
-		uint32_t len;
+		static uint32_t len;
 		/* read first(?) part of data */
 		ret=params->read_func((unsigned char *)&usbdata,
 				sizeof(usbdata), params->data);
@@ -218,8 +219,8 @@ ptp_usb_getdata (PTPParams* params, PTPContainer* ptp,
 uint16_t
 ptp_usb_getresp (PTPParams* params, PTPContainer* resp)
 {
-	uint16_t ret;
-	PTPUSBBulkContainer usbresp;
+	static uint16_t ret;
+	static PTPUSBBulkContainer usbresp;
 
 	PTP_CNT_INIT(usbresp);
 	/* read response, it should never be longer than sizeof(usbresp) */
@@ -280,7 +281,7 @@ ptp_usb_getresp (PTPParams* params, PTPContainer* resp)
  * Performs PTP transaction. ptp is a PTPContainer with appropriate fields
  * filled in (i.e. operation code and parameters). It's up to caller to do
  * so.
- * The flags decide thether the transaction has a data phase and what is its
+ * The flags decide whether the transaction has a data phase and what is its
  * direction (send or receive). 
  * If transaction is sending data the sendlen should contain its length in
  * bytes, otherwise it's ignored.
@@ -337,7 +338,8 @@ static inline uint16_t
 ptp_usb_event (PTPParams* params, PTPContainer* event, int wait)
 {
 	uint16_t ret;
-	PTPUSBEventContainer usbevent;
+	static PTPUSBEventContainer usbevent;
+
 	PTP_CNT_INIT(usbevent);
 
 	if ((params==NULL) || (event==NULL)) 
@@ -560,6 +562,17 @@ ptp_getobjecthandles (PTPParams* params, uint32_t storage,
 	return ret;
 }
 
+/**
+ * ptp_ptp_getobjectinfo:
+ * params:	PTPParams*
+ *		handle			- object Handler
+ *		objectinfo		- pointer to PTPObjectInfo structure
+ *
+ * Fills objectinfo structure with appropriate data of object given by
+ * hander.
+ *
+ * Return values: Some PTP_RC_* code.
+ **/
 uint16_t
 ptp_getobjectinfo (PTPParams* params, uint32_t handle,
 			PTPObjectInfo* objectinfo)
@@ -1416,6 +1429,50 @@ ptp_perror(PTPParams* params, uint16_t error) {
 		}
 }
 
+/* return DataType description */
+
+const char*
+ptp_get_datatype_name(PTPParams* params, uint16_t dt)
+{
+	int i;
+	/* Data Types */
+	static struct {
+		uint16_t dt;
+		const char *txt;
+	} ptp_datatypes[] = {
+		{PTP_DTC_UNDEF,		N_("UndefinedType")},
+		{PTP_DTC_INT8,		N_("INT8")},
+		{PTP_DTC_UINT8,		N_("UINT8")},
+		{PTP_DTC_INT16,		N_("INT16")},
+		{PTP_DTC_UINT16,	N_("UINT16")},
+		{PTP_DTC_INT32,		N_("INT32")},
+		{PTP_DTC_UINT32,	N_("UINT32")},
+		{PTP_DTC_INT64,		N_("INT64")},
+		{PTP_DTC_UINT64,	N_("UINT64")},
+		{PTP_DTC_INT128,	N_("INT128")},
+		{PTP_DTC_UINT128,	N_("UINT128")},
+		{PTP_DTC_AINT8,		N_("ArrayINT8")},
+		{PTP_DTC_AUINT8,	N_("ArrayUINT8")},
+		{PTP_DTC_AINT16,	N_("ArrayINT16")},
+		{PTP_DTC_AUINT16,	N_("ArrayUINT16")},
+		{PTP_DTC_AINT32,	N_("ArrayINT32")},
+		{PTP_DTC_AUINT32,	N_("ArrayUINT32")},
+		{PTP_DTC_AINT64,	N_("ArrayINT64")},
+		{PTP_DTC_AUINT64,	N_("ArrayUINT64")},
+		{PTP_DTC_AINT128,	N_("ArrayINT128")},
+		{PTP_DTC_AUINT128,	N_("ArrayUINT128")},
+		{PTP_DTC_STR,		N_("String")},
+		{0,NULL}
+	};
+
+	for (i=0; ptp_datatypes[i].txt!=NULL; i++)
+		if (ptp_datatypes[i].dt == dt){
+			return (ptp_datatypes[i].txt);
+		}
+
+	return NULL;
+}
+
 /* return ptp operation name */
 
 const char*
@@ -1423,7 +1480,7 @@ ptp_get_operation_name(PTPParams* params, uint16_t oc)
 {
 	int i;
 	/* Operation Codes */
-	struct {
+	static struct {
 		uint16_t oc;
 		const char *txt;
 	} ptp_operations[] = {
@@ -1458,7 +1515,7 @@ ptp_get_operation_name(PTPParams* params, uint16_t oc)
 		{PTP_OC_InitiateOpenCapture,	N_("InitiateOpenCapture")},
 		{0,NULL}
 	};
-	struct {
+	static struct {
 		uint16_t oc;
 		const char *txt;
 	} ptp_operations_EK[] = {
@@ -1466,7 +1523,7 @@ ptp_get_operation_name(PTPParams* params, uint16_t oc)
 		{PTP_OC_EK_SendFileObject,	N_("EK SendFileObject")},
 		{0,NULL}
 	};
-	struct {
+	static struct {
 		uint16_t oc;
 		const char *txt;
 	} ptp_operations_CANON[] = {
@@ -1517,7 +1574,7 @@ ptp_get_property_name(PTPParams* params, uint16_t dpc)
 {
 	int i;
 	/* Device Property descriptions */
-	struct {
+	static struct {
 		uint16_t dpc;
 		const char *txt;
 	} ptp_device_properties[] = {
@@ -1557,7 +1614,7 @@ ptp_get_property_name(PTPParams* params, uint16_t dpc)
 		{PTP_DPC_CopyrightInfo,		N_("Copyright Info")},
 		{0,NULL}
 	};
-	struct {
+	static struct {
 		uint16_t dpc;
 		const char *txt;
 	} ptp_device_properties_EK[] = {
@@ -1571,7 +1628,7 @@ ptp_get_property_name(PTPParams* params, uint16_t dpc)
 		{0,NULL}
 	};
 
-	struct {
+	static struct {
 		uint16_t dpc;
 		const char *txt;
 	} ptp_device_properties_CANON[] = {
@@ -1584,162 +1641,105 @@ ptp_get_property_name(PTPParams* params, uint16_t dpc)
 		{0,NULL}
 	};
 /* Nikon Codes added by Corey Manders and Mehreen Chaudary */
-	struct {
+	static struct {
 		uint16_t dpc;
 		const char *txt;
 	} ptp_device_properties_NIKON[] = {
 		{PTP_DPC_NIKON_ShootingBank,	N_("NIKON Shooting Bank")},
-		{PTP_DPC_NIKON_ShootingBankNameA,
-					N_("NIKON Shooting Bank Name A")},
-		{PTP_DPC_NIKON_ShootingBankNameB,
-					N_("NIKON Shooting Bank Name B")},
-		{PTP_DPC_NIKON_ShootingBankNameC,
-					N_("NIKON Shooting Bank Name C")},
-		{PTP_DPC_NIKON_ShootingBankNameD,
-					N_("NIKON Shooting Bank Name D")},
+		{PTP_DPC_NIKON_ShootingBankNameA, N_("NIKON Shooting Bank Name A")},
+		{PTP_DPC_NIKON_ShootingBankNameB, N_("NIKON Shooting Bank Name B")},
+		{PTP_DPC_NIKON_ShootingBankNameC, N_("NIKON Shooting Bank Name C")},
+		{PTP_DPC_NIKON_ShootingBankNameD, N_("NIKON Shooting Bank Name D")},
 		{PTP_DPC_NIKON_RawCompression,	N_("NIKON Raw Compression")},
-		{PTP_DPC_NIKON_WhiteBalanceAutoBias,
-					N_("NIKON White Balance Auto Bias")},
-		{PTP_DPC_NIKON_WhiteBalanceTungstenBias,
-				N_("NIKON White Balance Tungsten Bias")},
-		{PTP_DPC_NIKON_WhiteBalanceFlourescentBias,
-				N_("NIKON White Balance Flourescent Bias")},
-		{PTP_DPC_NIKON_WhiteBalanceDaylightBias,
-				N_("NIKON White Balance Daylight Bias")},
-		{PTP_DPC_NIKON_WhiteBalanceFlashBias,
-				N_("NIKON White Balance Flash Bias")},
-		{PTP_DPC_NIKON_WhiteBalanceCloudyBias,
-				N_("NIKON White Balance Cloudy Bias")},
-		{PTP_DPC_NIKON_WhiteBalanceShadeBias,
-				N_("NIKON White Balance Shade Bias")},
-		{PTP_DPC_NIKON_WhiteBalanceColourTemperature,
-				N_("NIKON White Balance Colour Temperature")},
-		{PTP_DPC_NIKON_ImageSharpening,
-				N_("NIKON Image Sharpening")},
-		{PTP_DPC_NIKON_ToneCompensation,
-				N_("NIKON Tone Compensation")},
+		{PTP_DPC_NIKON_WhiteBalanceAutoBias, N_("NIKON White Balance Auto Bias")},
+		{PTP_DPC_NIKON_WhiteBalanceTungstenBias, N_("NIKON White Balance Tungsten Bias")},
+		{PTP_DPC_NIKON_WhiteBalanceFlourescentBias, N_("NIKON White Balance Flourescent Bias")},
+		{PTP_DPC_NIKON_WhiteBalanceDaylightBias, N_("NIKON White Balance Daylight Bias")},
+		{PTP_DPC_NIKON_WhiteBalanceFlashBias, N_("NIKON White Balance Flash Bias")},
+		{PTP_DPC_NIKON_WhiteBalanceCloudyBias, N_("NIKON White Balance Cloudy Bias")},
+		{PTP_DPC_NIKON_WhiteBalanceShadeBias, N_("NIKON White Balance Shade Bias")},
+		{PTP_DPC_NIKON_WhiteBalanceColourTemperature, N_("NIKON White Balance Colour Temperature")},
+		{PTP_DPC_NIKON_ImageSharpening, N_("NIKON Image Sharpening")},
+		{PTP_DPC_NIKON_ToneCompensation, N_("NIKON Tone Compensation")},
 		{PTP_DPC_NIKON_ColourMode,	N_("NIKON Colour Mode")},
 		{PTP_DPC_NIKON_HueAdjustment,	N_("NIKON Hue Adjustment")},
-		{PTP_DPC_NIKON_NonCPULensDataFocalLength,
-				N_("NIKON Non CPU Lens Data Focal Length")},
-		{PTP_DPC_NIKON_NonCPULensDataMaximumAperture,
-			N_("NIKON Non CPU Lens Data Maximum Aperture")},
-		{PTP_DPC_NIKON_CSMMenuBankSelect,
-				N_("NIKON CSM Menu Bank Select")},
+		{PTP_DPC_NIKON_NonCPULensDataFocalLength, N_("NIKON Non CPU Lens Data Focal Length")},
+		{PTP_DPC_NIKON_NonCPULensDataMaximumAperture, N_("NIKON Non CPU Lens Data Maximum Aperture")},
+		{PTP_DPC_NIKON_CSMMenuBankSelect, N_("NIKON CSM Menu Bank Select")},
 		{PTP_DPC_NIKON_MenuBankNameA,	N_("NIKON Menu Bank Name A")},
 		{PTP_DPC_NIKON_MenuBankNameB,	N_("NIKON Menu Bank Name B")},	
 		{PTP_DPC_NIKON_MenuBankNameC,	N_("NIKON Menu Bank Name C")},
 		{PTP_DPC_NIKON_MenuBankNameD,	N_("NIKON Menu Bank Name D")},
-		{PTP_DPC_NIKON_A1AFCModePriority,
-				N_("NIKON (A1) AFC Mode Priority")},
-		{PTP_DPC_NIKON_A2AFSModePriority,
-				N_("NIKON (A2) AFS Mode Priority")},
-		{PTP_DPC_NIKON_A3GroupDynamicAF,
-				N_("NIKON (A3) Group Dynamic AF")},
-		{PTP_DPC_NIKON_A4AFActivation,		
-				N_("NIKON (A4) AF Activation")},	
-		{PTP_DPC_NIKON_A5FocusAreaIllumManualFocus,
-			N_("NIKON (A5) Focus Area Illum Manual Focus")},
-		{PTP_DPC_NIKON_FocusAreaIllumContinuous,
-				N_("NIKON Focus Area Illum Continuous")},
-		{PTP_DPC_NIKON_FocusAreaIllumWhenSelected,
-				N_("NIKON Focus Area Illum When Selected")},
+		{PTP_DPC_NIKON_A1AFCModePriority, N_("NIKON (A1) AFC Mode Priority")},
+		{PTP_DPC_NIKON_A2AFSModePriority, N_("NIKON (A2) AFS Mode Priority")},
+		{PTP_DPC_NIKON_A3GroupDynamicAF, N_("NIKON (A3) Group Dynamic AF")},
+		{PTP_DPC_NIKON_A4AFActivation,	N_("NIKON (A4) AF Activation")},	
+		{PTP_DPC_NIKON_A5FocusAreaIllumManualFocus, N_("NIKON (A5) Focus Area Illum Manual Focus")},
+		{PTP_DPC_NIKON_FocusAreaIllumContinuous, N_("NIKON Focus Area Illum Continuous")},
+		{PTP_DPC_NIKON_FocusAreaIllumWhenSelected, N_("NIKON Focus Area Illum When Selected")},
 		{PTP_DPC_NIKON_A6FocusArea,	N_("NIKON (A6) Focus Area")},
-		{PTP_DPC_NIKON_A7VerticalAFON,
-				N_("NIKON (A7) Vertical AF ON")},
+		{PTP_DPC_NIKON_A7VerticalAFON, N_("NIKON (A7) Vertical AF ON")},
 		{PTP_DPC_NIKON_B1ISOAuto,	N_("NIKON (B1) ISO Auto")},
-		{PTP_DPC_NIKON_B2ISOStep,	N_("NIKON (B2)	ISO Step")},
-		{PTP_DPC_NIKON_B3EVStep,	N_("NIKON (B3) EV Step")},
-		{PTP_DPC_NIKON_B4ExposureCompEv,
-				N_("NIKON (B4) Exposure Comp Ev")},
-		{PTP_DPC_NIKON_B5ExposureComp,
-				N_("NIKON (B5) Exposure Comp")},
-		{PTP_DPC_NIKON_B6CenterWeightArea,
-				N_("NIKON (B6) Center Weight Area")},
-		{PTP_DPC_NIKON_C1AELock,	N_("NIKON (C1) AE Lock")},
-		{PTP_DPC_NIKON_C2AELAFL,	N_("NIKON (C2) AE_L/AF_L")},
-		{PTP_DPC_NIKON_C3AutoMeterOff,
-				N_("NIKON (C3) Auto Meter Off")},
+		{PTP_DPC_NIKON_B2ISOStep,	N_("NIKON (B2) ISO Step")},
+/*		{PTP_DPC_NIKON_B3EVStep,	N_("NIKON (B3) EV Step")}, */
+		{PTP_DPC_NIKON_B4ExposureCompEv, N_("NIKON (B4) Exposure Comp Ev")},
+		{PTP_DPC_NIKON_ExposureCompensation, N_("NIKON Exposure Compensation")},
+		{PTP_DPC_NIKON_CenterWeightArea, N_("NIKON Center Weighted Area")},
+		{PTP_DPC_NIKON_C1AELock,	N_("NIKON (C1) AE Lock Mode")},
+		{PTP_DPC_NIKON_C2AELAFL,	N_("NIKON (C2) AE-L/AF-L Mode")},
+		{PTP_DPC_NIKON_C3AutoMeterOff, N_("NIKON (C3) Auto Meter Off")},
 		{PTP_DPC_NIKON_C4SelfTimer,	N_("NIKON (C4) Self Timer")},	
 		{PTP_DPC_NIKON_C5MonitorOff,	N_("NIKON (C5) Monitor Off")},
-		{PTP_DPC_NIKON_D1ShootingSpeed,
-				N_("NIKON (D1) Shooting Speed")},
-		{PTP_DPC_NIKON_D2MaximumShots,
-				N_("NIKON (D2) Maximum Shots")},
+		{PTP_DPC_NIKON_D1ShootingSpeed, N_("NIKON (D1) Shooting Speed")},
+		{PTP_DPC_NIKON_D2MaximumShots, N_("NIKON (D2) Maximum Shots")},
 		{PTP_DPC_NIKON_D3ExpDelayMode,	N_("NIKON (D3) ExpDelayMode")},	
-		{PTP_DPC_NIKON_D4LongExposureNoiseReduction,
-			N_("NIKON (D4) Long Exposure Noise Reduction")},
-		{PTP_DPC_NIKON_D5FileNumberSequence,
-				N_("NIKON (D5) File Number Sequence")},
-		{PTP_DPC_NIKON_D6ControlPanelFinderRearControl,
-			N_("NIKON (D6) Control Panel Finder Rear Control")},
-		{PTP_DPC_NIKON_ControlPanelFinderViewfinder,
-				N_("NIKON Control Panel Finder Viewfinder")},
+		{PTP_DPC_NIKON_LongExposureNoiseReduction, N_("NIKON Long Exposure Noise Reduction")},
+		{PTP_DPC_NIKON_D5FileNumberSequence, N_("NIKON (D5) File Number Sequence")},
+		{PTP_DPC_NIKON_D6ControlPanelFinderRearControl, N_("NIKON (D6) Control Panel Finder Rear Control")},
+		{PTP_DPC_NIKON_ControlPanelFinderViewfinder, N_("NIKON Control Panel Finder Viewfinder")},
 		{PTP_DPC_NIKON_D7Illumination,	N_("NIKON (D7) Illumination")},
-		{PTP_DPC_NIKON_E1FlashSyncSpeed,
-				N_("NIKON (E1) Flash Sync Speed")},
-		{PTP_DPC_NIKON_E2FlashShutterSpeed,
-				N_("NIKON (E2) Flash Shutter Speed")},
-		{PTP_DPC_NIKON_E3AAFlashMode,
-				N_("NIKON (E3) AA Flash Mode")},
-		{PTP_DPC_NIKON_E4ModelingFlash,	
-				N_("NIKON (E4) Modeling Flash")},
-		{PTP_DPC_NIKON_E5AutoBracketSet,
-				N_("NIKON (E5) Auto Bracket Set")},
-		{PTP_DPC_NIKON_E6ManualModeBracketing,
-				N_("NIKON (E6) Manual Mode Bracketing")},
-		{PTP_DPC_NIKON_E7AutoBracketOrder,
-				N_("NIKON (E7) Auto Bracket Order")},
-		{PTP_DPC_NIKON_E8AutoBracketSelection,
-				N_("NIKON (E8) Auto Bracket Selection")},
-		{PTP_DPC_NIKON_F1CenterButtonShootingMode,
-				N_("NIKON (F1) Center Button Shooting Mode")},
-		{PTP_DPC_NIKON_CenterButtonPlaybackMode,
-				N_("NIKON Center Button Playback Mode")},
-		{PTP_DPC_NIKON_F2Multiselector,
-				N_("NIKON (F2) Multiselector")},
-		{PTP_DPC_NIKON_F3PhotoInfoPlayback,
-				N_("NIKON (F3) PhotoInfoPlayback")},	
-		{PTP_DPC_NIKON_F4AssignFuncButton,
-				N_("NIKON (F4) Assign Function Button")},
-		{PTP_DPC_NIKON_F5CustomizeCommDials,
-				N_("NIKON (F5) Customize Comm Dials")},
+		{PTP_DPC_NIKON_E1FlashSyncSpeed, N_("NIKON (E1) Flash Sync Speed")},
+		{PTP_DPC_NIKON_E2FlashShutterSpeed, N_("NIKON (E2) Flash Shutter Speed")},
+		{PTP_DPC_NIKON_E3AAFlashMode, N_("NIKON (E3) AA Flash Mode")},
+		{PTP_DPC_NIKON_E4ModelingFlash,	N_("NIKON (E4) Modeling Flash")},
+		{PTP_DPC_NIKON_E5AutoBracketSet, N_("NIKON (E5) Auto Bracket Set")},
+		{PTP_DPC_NIKON_E6ManualModeBracketing, N_("NIKON (E6) Manual Mode Bracketing")},
+		{PTP_DPC_NIKON_E7AutoBracketOrder, N_("NIKON (E7) Auto Bracket Order")},
+		{PTP_DPC_NIKON_E8AutoBracketSelection, N_("NIKON (E8) Auto Bracket Selection")},
+		{PTP_DPC_NIKON_F1CenterButtonShootingMode, N_("NIKON (F1) Center Button Shooting Mode")},
+		{PTP_DPC_NIKON_CenterButtonPlaybackMode, N_("NIKON Center Button Playback Mode")},
+		{PTP_DPC_NIKON_F2Multiselector, N_("NIKON (F2) Multiselector")},
+		{PTP_DPC_NIKON_F3PhotoInfoPlayback, N_("NIKON (F3) PhotoInfoPlayback")},	
+		{PTP_DPC_NIKON_F4AssignFuncButton, N_("NIKON (F4) Assign Function Button")},
+		{PTP_DPC_NIKON_F5CustomizeCommDials, N_("NIKON (F5) Customize Comm Dials")},
 		{PTP_DPC_NIKON_ChangeMainSub,	N_("NIKON Change Main Sub")},
-		{PTP_DPC_NIKON_ApertureSetting,
-				N_("NIKON Aperture Setting")},
-		{PTP_DPC_NIKON_MenusAndPlayback,
-				N_("NIKON Menus and Playback")},
-		{PTP_DPC_NIKON_F6ButtonsAndDials,
-				N_("NIKON (F6) Buttons and Dials")},
+		{PTP_DPC_NIKON_ApertureSetting, N_("NIKON Aperture Setting")},
+		{PTP_DPC_NIKON_MenusAndPlayback, N_("NIKON Menus and Playback")},
+		{PTP_DPC_NIKON_F6ButtonsAndDials, N_("NIKON (F6) Buttons and Dials")},
 		{PTP_DPC_NIKON_F7NoCFCard,	N_("NIKON (F7) No CF Card")},
-		{PTP_DPC_NIKON_AutoImageRotation,
-				N_("NIKON Auto Image Rotation")},
-		{PTP_DPC_NIKON_ExposureBracketingOnOff,
-				N_("NIKON Exposure Bracketing On Off")},
-		{PTP_DPC_NIKON_ExposureBracketingIntervalDist,
-			N_("NIKON Exposure Bracketing Interval Distance")},
-		{PTP_DPC_NIKON_ExposureBracketingNumBracketPlace,
-			N_("NIKON Exposure Bracketing Number Bracket Place")},
-		{PTP_DPC_NIKON_AutofocusLCDTopMode2,
-				N_("NIKON Autofocus LCD Top Mode 2")},
-		{PTP_DPC_NIKON_AutofocusLCDTopMode3AndMode4,
-			N_("NIKON Autofocus LCD Top Mode 3 and Mode 4")},
+		{PTP_DPC_NIKON_AutoImageRotation, N_("NIKON Auto Image Rotation")},
+		{PTP_DPC_NIKON_ExposureBracketing, N_("NIKON Exposure Bracketing")},
+		{PTP_DPC_NIKON_ExposureBracketingIntervalDist, N_("NIKON Exposure Bracketing Interval Distance")},
+		{PTP_DPC_NIKON_ExposureBracketingNumBracketPlace, N_("NIKON Exposure Bracketing Number Bracket Place")},
+		{PTP_DPC_NIKON_AutofocusLCDTopMode2, N_("NIKON Autofocus LCD Top Mode 2")},
+		{PTP_DPC_NIKON_AutofocusArea, N_("NIKON Autofocus Area selector")},
 		{PTP_DPC_NIKON_LightMeter,	N_("NIKON Light Meter")},
-		{PTP_DPC_NIKON_ExposureApertureLock,
-			N_("NIKON Exposure Aperture Lock")},
+		{PTP_DPC_NIKON_ExposureApertureLock, N_("NIKON Exposure Aperture Lock")},
 		{PTP_DPC_NIKON_MaximumShots,	N_("NIKON Maximum Shots")},
                 {PTP_DPC_NIKON_Beep, N_("NIKON AF Beep Mode")},
                 {PTP_DPC_NIKON_AFC, N_("NIKON ??? AF Related")},
-                {PTP_DPC_NIKON_AFLampOff, N_("NIKON AF Lamp")},
+                {PTP_DPC_NIKON_AFAssistOFF, N_("NIKON AF Assist Lamp")},
                 {PTP_DPC_NIKON_PADVPMode, N_("NIKON Auto ISO P/A/DVP Setting")},
                 {PTP_DPC_NIKON_ReviewOff, N_("NIKON Image Review")},
                 {PTP_DPC_NIKON_GridDisplay, N_("NIKON Viewfinder Grid Display")},
                 {PTP_DPC_NIKON_AFAreaIllumination, N_("NIKON AF Area Illumination")},
                 {PTP_DPC_NIKON_FlashMode, N_("NIKON Flash Mode")},
-                {PTP_DPC_NIKON_FlashPower, N_("NIKON Flash Power")},
+                {PTP_DPC_NIKON_FLashCommanderMode, N_("NIKON Flash Commander Mode")},
                 {PTP_DPC_NIKON_FlashSignOff, N_("NIKON Flash Sign")},
-                {PTP_DPC_NIKON_FlashExposureCompensation,
-			 N_("NIKON Flash Exposure Compensation")},
+                {PTP_DPC_NIKON_GridDisplay, N_("NIKON Grid Display")},
+                {PTP_DPC_NIKON_FlashModeManualPower, N_("NIKON Manual Flash Power")},
+                {PTP_DPC_NIKON_FlashModeCommanderPower, N_("NIKON Commander Flash Power")},
+                {PTP_DPC_NIKON_FlashExposureCompensation, N_("NIKON Flash Exposure Compensation")},
                 {PTP_DPC_NIKON_RemoteTimeout, N_("NIKON Remote Timeout")},
                 {PTP_DPC_NIKON_ImageCommentString, N_("NIKON Image Comment String")},
                 {PTP_DPC_NIKON_FlashOpen, N_("NIKON Flash Open")},
@@ -1747,13 +1747,18 @@ ptp_get_property_name(PTPParams* params, uint16_t dpc)
                 {PTP_DPC_NIKON_LensID, N_("NIKON Lens ID")},
                 {PTP_DPC_NIKON_FocalLengthMin, N_("NIKON Min. Focal Length")},
                 {PTP_DPC_NIKON_FocalLengthMax, N_("NIKON Max. Focal Length")},
-                {PTP_DPC_NIKON_MaxApAtMinFocalLength,
-			 N_("NIKON Max. Aperture at Min. Focal Length")},
-                {PTP_DPC_NIKON_MaxApAtMaxFocalLength,
-			 N_("NIKON Max. Aperture at Max. Focal Length")},
+                {PTP_DPC_NIKON_MaxApAtMinFocalLength, N_("NIKON Max. Aperture at Min. Focal Length")},
+                {PTP_DPC_NIKON_MaxApAtMaxFocalLength, N_("NIKON Max. Aperture at Max. Focal Length")},
                 {PTP_DPC_NIKON_LowLight, N_("NIKON Low Light")},
                 {PTP_DPC_NIKON_ExtendedCSMMenu, N_("NIKON Extended CSM Menu")},
                 {PTP_DPC_NIKON_OptimiseImage, N_("NIKON Optimise Image")},
+                {PTP_DPC_NIKON_ImageCommentAttached, N_("NIKON Image Comment")},
+                {PTP_DPC_NIKON_AutoExposureLock, N_("NIKON AE Lock")},
+                {PTP_DPC_NIKON_AutoFocusLock, N_("NIKON AF Lock")},
+                {PTP_DPC_NIKON_CameraOrientation, N_("NIKON Camera orientation")},
+                {PTP_DPC_NIKON_FlashSignOFF, N_("NIKON Flash Sign Off")},
+                {PTP_DPC_NIKON_EVStep, N_("NIKON EV Step")},
+
 		{0,NULL}
 	};
 
