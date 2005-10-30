@@ -87,6 +87,8 @@ int myusb_bulk_write(usb_dev_handle *dev, int ep, char *bytes, int length,
 #define ACT_DELETE_OBJECT	0xB
 #define ACT_DELETE_ALL_FILES	0xC
 #define ACT_LOOP_CAPTURE	0xD
+#define ACT_SHOW_ALL_PROPERTIES	0xE
+#define ACT_SHOW_UNKNOWN_PROPERTIES	0xF
 
 /* printing value type */
 #define PTPCAM_PRINT_HEX	00

@@ -118,6 +118,8 @@ help()
 	"                               if used in conjunction with --val)\n"
 	"  --set-property=NUMBER        Set property value (--val required)\n"
 	"  --val=VALUE                  Property value\n"
+	"  --show-all-properties        Show all properties values\n"
+	"  --show-unknown-properties    Show unknown properties values\n"
 	"  -L, --list-files             List all files\n"
 	"  -g, --get-file=HANDLE        Get file by given handler\n"
 	"  -G, --get-all-files          Get all files\n"
@@ -1059,7 +1061,7 @@ getset_property (int busn,int devn,uint16_t property,char* value,short force)
 		"Could not get device property description!\n"
 		"Try to reset the camera.\n");
 	if (verbose)
-		printf ("Data type is 0x%04x\n",dpd.DataType);
+		printf ("Data type %s\n", ptp_get_datatype_name(&params, dpd.DataType));
 	printf ("Current value is ");
 	if (dpd.FormFlag==PTP_DPFF_Enumeration)
 		PRINT_PROPVAL_DEC(dpd.CurrentValue);
@@ -1114,6 +1116,55 @@ getset_property (int busn,int devn,uint16_t property,char* value,short force)
 	CR(ptp_closesession(&params), "Could not close session!\n"
 	"Try to reset the camera.\n");
 	close_usb(&ptp_usb, dev);
+}
+
+void
+show_all_properties (int busn,int devn,short force, int unknown);
+void
+show_all_properties (int busn,int devn,short force, int unknown)
+{
+	PTPParams params;
+	PTP_USB ptp_usb;
+	struct usb_device *dev;
+	PTPDevicePropDesc dpd;
+	const char* propdesc;
+	int i;
+
+	printf ("\n");
+
+	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
+		return;
+
+	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
+		"Could not get device info\nTry to reset the camera.\n");
+	printf("Camera: %s",params.deviceinfo.Model);
+	if ((devn!=0)||(busn!=0)) 
+		printf(" (bus %i, dev %i)\n",busn,devn);
+	else
+		printf("\n");
+
+	for (i=0; i<params.deviceinfo.DevicePropertiesSupported_len;i++) {
+		propdesc=ptp_get_property_name(&params,
+				params.deviceinfo.DevicePropertiesSupported[i]);
+		if ((unknown) && (propdesc!=NULL)) continue;
+
+		printf("0x%04x: ",
+				params.deviceinfo.DevicePropertiesSupported[i]);
+		memset(&dpd,0,sizeof(dpd));
+		CR(ptp_getdevicepropdesc(&params,
+			params.deviceinfo.DevicePropertiesSupported[i],&dpd),
+			"Could not get device property description!\n"
+			"Try to reset the camera.\n");
+	
+		PRINT_PROPVAL_HEX(dpd.CurrentValue);
+		if (verbose)
+			printf (" (%s)",propdesc==NULL?"UNKNOWN":propdesc);
+	
+		printf("\n");
+		ptp_free_devicepropdesc(&dpd);
+	}
+
+	close_camera(&ptp_usb, &params, dev);
 }
 
 int
@@ -1258,6 +1309,8 @@ main(int argc, char ** argv)
 		{"list-files",0,0,'L'},
 		{"list-operations",1,0,'o'},
 		{"list-properties",0,0,'p'},
+		{"show-all-properties",0,0,0},
+		{"show-unknown-properties",0,0,0},
 		{"show-property",1,0,'s'},
 		{"set-property",1,0,'s'},
 		{"get-file",1,0,'g'},
@@ -1297,6 +1350,10 @@ main(int argc, char ** argv)
 				action=ACT_LOOP_CAPTURE;
 				num=strtol(optarg,NULL,10);
 			}
+			if (!(strcmp("show-all-properties", loptions[option_index].name)))
+				action=ACT_SHOW_ALL_PROPERTIES;
+			if (!(strcmp("show-unknown-properties", loptions[option_index].name)))
+				action=ACT_SHOW_UNKNOWN_PROPERTIES;
 
 			break;
 		case 'f':
@@ -1402,6 +1459,12 @@ main(int argc, char ** argv)
 			break;
 		case ACT_LOOP_CAPTURE:
 			loop_capture (busn,devn,force,num,overwrite);
+			break;
+		case ACT_SHOW_ALL_PROPERTIES:
+			show_all_properties(busn,devn,force,0);
+			break;
+		case ACT_SHOW_UNKNOWN_PROPERTIES:
+			show_all_properties(busn,devn,force,1);
 	}
 
 	return 0;
