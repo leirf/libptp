@@ -1,3 +1,10 @@
+2005-10-30 Mariusz Woloszyn
+	* src/ptp.c, src/ptp.h: code cleanup and typos fixed;
+	  added more comments, introduced ptp_get_datatype_name(),
+	  added couple of NIKON properties
+	* src/ptpcam.c, src/ptpcam.h: introduced --show-all-properties and
+	  --show-unknown-properties (both usefull for debuging)
+
 2005-10-26 Mariusz Woloszyn
 	* configure.in: added --with-libusbdir
 
@@ -27,7 +34,7 @@
 	* ptpcam.h: fixed typo
 	* myusb.c: added private usb bulk read/write code
 	* configure.in, Makefile.am: updated version added new files, fixed
-	parralel build problem (thanks to Daniel Black for patch)
+	  parralel build problem (thanks to Daniel Black for patch)
 
 
 2005-07-26 Mariusz Woloszyn
