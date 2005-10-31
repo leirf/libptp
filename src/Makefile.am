@@ -2,7 +2,7 @@ EXTRA_DIST = ptp-pack.c
 
 lib_LTLIBRARIES = libptp2.la
 
-libptp2_la_SOURCES = ptp.c ptp.h
+libptp2_la_SOURCES = ptp.c ptp.h properties.c
 libptp2_la_LDFLAGS = -version-info @LIBPTP2_VERSION_INFO@
 
 libptp2includedir = $(includedir)/libptp2
