@@ -411,6 +411,8 @@ ptp_getdeviceinfo (PTPParams* params, PTPDeviceInfo* deviceinfo)
 	PTPContainer ptp;
 	char* di=NULL;
 
+	ptp_debug(params,"PTP: Obtaining DeviceInfo");
+
 	PTP_CNT_INIT(ptp);
 	ptp.Code=PTP_OC_GetDeviceInfo;
 	ptp.Nparam=0;
@@ -436,7 +438,7 @@ ptp_opensession (PTPParams* params, uint32_t session)
 	uint16_t ret;
 	PTPContainer ptp;
 
-	ptp_debug(params,"PTP: Opening session");
+	ptp_debug(params,"PTP: Opening session 0x%08x", session);
 
 	/* SessonID field of the operation dataset should always
 	   be set to 0 for OpenSession request! */
@@ -490,6 +492,8 @@ ptp_getstorageids (PTPParams* params, PTPStorageIDs* storageids)
 	PTPContainer ptp;
 	char* sids=NULL;
 
+	ptp_debug(params,"PTP: Obtaining StorageIDs");
+
 	PTP_CNT_INIT(ptp);
 	ptp.Code=PTP_OC_GetStorageIDs;
 	ptp.Nparam=0;
@@ -516,6 +520,9 @@ ptp_getstorageinfo (PTPParams* params, uint32_t storageid,
 	uint16_t ret;
 	PTPContainer ptp;
 	char* si=NULL;
+
+	ptp_debug(params,"PTP: Obtaining StorageInfo for storage 0x%08x",
+		storageid);
 
 	PTP_CNT_INIT(ptp);
 	ptp.Code=PTP_OC_GetStorageInfo;
@@ -550,6 +557,8 @@ ptp_getobjecthandles (PTPParams* params, uint32_t storage,
 	PTPContainer ptp;
 	char* oh=NULL;
 
+	ptp_debug(params,"PTP: Obtaining ObjectHandles");
+
 	PTP_CNT_INIT(ptp);
 	ptp.Code=PTP_OC_GetObjectHandles;
 	ptp.Param1=storage;
@@ -581,6 +590,9 @@ ptp_getobjectinfo (PTPParams* params, uint32_t handle,
 	PTPContainer ptp;
 	char* oi=NULL;
 
+	ptp_debug(params,"PTP: Obtaining ObjectInfo for object 0x%08x",
+		handle);
+
 	PTP_CNT_INIT(ptp);
 	ptp.Code=PTP_OC_GetObjectInfo;
 	ptp.Param1=handle;
@@ -596,6 +608,9 @@ ptp_getobject (PTPParams* params, uint32_t handle, char** object)
 {
 	PTPContainer ptp;
 
+	ptp_debug(params,"PTP: Downloading Object 0x%08x",
+		handle);
+
 	PTP_CNT_INIT(ptp);
 	ptp.Code=PTP_OC_GetObject;
 	ptp.Param1=handle;
@@ -607,6 +622,9 @@ uint16_t
 ptp_getthumb (PTPParams* params, uint32_t handle,  char** object)
 {
 	PTPContainer ptp;
+
+	ptp_debug(params,"PTP: Downloading Thumbnail from object 0x%08x",
+		handle);
 
 	PTP_CNT_INIT(ptp);
 	ptp.Code=PTP_OC_GetThumb;
@@ -630,6 +648,8 @@ ptp_deleteobject (PTPParams* params, uint32_t handle,
 			uint32_t ofc)
 {
 	PTPContainer ptp;
+
+	ptp_debug(params,"PTP: Deleting Object 0x%08x", handle);
 
 	PTP_CNT_INIT(ptp);
 	ptp.Code=PTP_OC_DeleteObject;
@@ -667,6 +687,9 @@ ptp_sendobjectinfo (PTPParams* params, uint32_t* store,
 	char* oidata=NULL;
 	uint32_t size;
 
+	ptp_debug(params,"PTP: Sending ObjectInfo; parent object 0x%08x", 
+		*parenthandle);
+
 	PTP_CNT_INIT(ptp);
 	ptp.Code=PTP_OC_SendObjectInfo;
 	ptp.Param1=*store;
@@ -698,7 +721,10 @@ ptp_sendobject (PTPParams* params, char* object, uint32_t size)
 {
 	PTPContainer ptp;
 
+	ptp_debug(params,"PTP: Sending Object of size %u", size);
+
 	PTP_CNT_INIT(ptp);
+
 	ptp.Code=PTP_OC_SendObject;
 	ptp.Nparam=0;
 
@@ -727,6 +753,8 @@ ptp_initiatecapture (PTPParams* params, uint32_t storageid,
 {
 	PTPContainer ptp;
 
+	ptp_debug(params,"PTP: Initiating Capture");
+
 	PTP_CNT_INIT(ptp);
 	ptp.Code=PTP_OC_InitiateCapture;
 	ptp.Param1=storageid;
@@ -742,6 +770,8 @@ ptp_getdevicepropdesc (PTPParams* params, uint16_t propcode,
 	PTPContainer ptp;
 	uint16_t ret;
 	char* dpd=NULL;
+
+	ptp_debug(params, "PTP: Obtaining Device Property Description for property 0x%04x", propcode);
 
 	PTP_CNT_INIT(ptp);
 	ptp.Code=PTP_OC_GetDevicePropDesc;
@@ -762,6 +792,7 @@ ptp_getdevicepropvalue (PTPParams* params, uint16_t propcode,
 	uint16_t ret;
 	char* dpv=NULL;
 
+	ptp_debug(params, "PTP: Obtaining Device Property Value for property 0x%04x", propcode);
 
 	PTP_CNT_INIT(ptp);
 	ptp.Code=PTP_OC_GetDevicePropValue;
@@ -781,6 +812,8 @@ ptp_setdevicepropvalue (PTPParams* params, uint16_t propcode,
 	uint16_t ret;
 	uint32_t size;
 	char* dpv=NULL;
+
+	ptp_debug(params, "PTP: Setting Device Property Value for property 0x%04x", propcode);
 
 	PTP_CNT_INIT(ptp);
 	ptp.Code=PTP_OC_SetDevicePropValue;
@@ -1315,18 +1348,6 @@ ptp_operation_issupported(PTPParams* params, uint16_t operation)
 }
 
 
-int
-ptp_property_issupported(PTPParams* params, uint16_t property)
-{
-	int i=0;
-
-	for (;i<params->deviceinfo.DevicePropertiesSupported_len;i++) {
-		if (params->deviceinfo.DevicePropertiesSupported[i]==property)
-			return 1;
-	}
-	return 0;
-}
-
 /* ptp structures feeing functions */
 
 void
@@ -1357,7 +1378,7 @@ ptp_perror(PTPParams* params, uint16_t error) {
 	int i;
 	/* PTP error descriptions */
 	static struct {
-		short error;
+		uint16_t error;
 		const char *txt;
 	} ptp_errors[] = {
 	{PTP_RC_Undefined, 		N_("PTP: Undefined Error")},
@@ -1399,17 +1420,24 @@ ptp_perror(PTPParams* params, uint16_t error) {
 
 	{PTP_ERROR_IO,		  N_("PTP: I/O error")},
 	{PTP_ERROR_BADPARAM,	  N_("PTP: Error: bad parameter")},
-	{PTP_ERROR_DATA_EXPECTED, N_("PTP: Protocol error, data expected")},
-	{PTP_ERROR_RESP_EXPECTED, N_("PTP: Protocol error, response expected")},
+	{PTP_ERROR_DATA_EXPECTED, N_("PTP: Protocol error: data expected")},
+	{PTP_ERROR_RESP_EXPECTED, N_("PTP: Protocol error: response expected")},
 	{0, NULL}
 	};
 	static struct {
-		short error;
+		uint16_t error;
 		const char *txt;
 	} ptp_errors_EK[] = {
 	{PTP_RC_EK_FilenameRequired,	N_("PTP EK: Filename Required")},
 	{PTP_RC_EK_FilenameConflicts,	N_("PTP EK: Filename Conflicts")},
 	{PTP_RC_EK_FilenameInvalid,	N_("PTP EK: Filename Invalid")},
+	{0, NULL}
+	};
+	static struct {
+		uint16_t error;
+		const char *txt;
+	} ptp_errors_NIKON[] = {
+	{PTP_RC_NIKON_PropertyReadOnly,	N_("PTP NIKON: Property Read Only")},
 	{0, NULL}
 	};
 
@@ -1423,10 +1451,22 @@ ptp_perror(PTPParams* params, uint16_t error) {
 	switch (params->deviceinfo.VendorExtensionID) {
 		case PTP_VENDOR_EASTMAN_KODAK:
 			for (i=0; ptp_errors_EK[i].txt!=NULL; i++)
-				if (ptp_errors_EK[i].error==error)
+				if (ptp_errors_EK[i].error==error) {
 					ptp_error(params, ptp_errors_EK[i].txt);
+					return;
+				}
 			break;
-		}
+		case PTP_VENDOR_NIKON:
+			for (i=0; ptp_errors_NIKON[i].txt!=NULL; i++)
+				if (ptp_errors_NIKON[i].error==error) {
+					ptp_error(params, ptp_errors_NIKON[i].txt);
+					return;
+				}
+			break;
+	}
+
+	ptp_error(params, "PTP: Error 0x%04x", error);
+	
 }
 
 /* return DataType description */
@@ -1564,229 +1604,6 @@ ptp_get_operation_name(PTPParams* params, uint16_t oc)
 			return (ptp_operations[i].txt);
 		}
 
-	return NULL;
-}
-
-/* return ptp property nam */
-
-const char*
-ptp_get_property_name(PTPParams* params, uint16_t dpc)
-{
-	int i;
-	/* Device Property descriptions */
-	static struct {
-		uint16_t dpc;
-		const char *txt;
-	} ptp_device_properties[] = {
-		{PTP_DPC_Undefined,		N_("PTP Undefined Property")},
-		{PTP_DPC_BatteryLevel,		N_("Battery Level")},
-		{PTP_DPC_FunctionalMode,	N_("Functional Mode")},
-		{PTP_DPC_ImageSize,		N_("Image Size")},
-		{PTP_DPC_CompressionSetting,	N_("Compression Setting")},
-		{PTP_DPC_WhiteBalance,		N_("White Balance")},
-		{PTP_DPC_RGBGain,		N_("RGB Gain")},
-		{PTP_DPC_FNumber,		N_("F-Number")},
-		{PTP_DPC_FocalLength,		N_("Focal Length")},
-		{PTP_DPC_FocusDistance,		N_("Focus Distance")},
-		{PTP_DPC_FocusMode,		N_("Focus Mode")},
-		{PTP_DPC_ExposureMeteringMode,	N_("Exposure Metering Mode")},
-		{PTP_DPC_FlashMode,		N_("Flash Mode")},
-		{PTP_DPC_ExposureTime,		N_("Exposure Time")},
-		{PTP_DPC_ExposureProgramMode,	N_("Exposure Program Mode")},
-		{PTP_DPC_ExposureIndex,
-					N_("Exposure Index (film speed ISO)")},
-		{PTP_DPC_ExposureBiasCompensation,
-					N_("Exposure Bias Compensation")},
-		{PTP_DPC_DateTime,		N_("Date Time")},
-		{PTP_DPC_CaptureDelay,		N_("Pre-Capture Delay")},
-		{PTP_DPC_StillCaptureMode,	N_("Still Capture Mode")},
-		{PTP_DPC_Contrast,		N_("Contrast")},
-		{PTP_DPC_Sharpness,		N_("Sharpness")},
-		{PTP_DPC_DigitalZoom,		N_("Digital Zoom")},
-		{PTP_DPC_EffectMode,		N_("Effect Mode")},
-		{PTP_DPC_BurstNumber,		N_("Burst Number")},
-		{PTP_DPC_BurstInterval,		N_("Burst Interval")},
-		{PTP_DPC_TimelapseNumber,	N_("Timelapse Number")},
-		{PTP_DPC_TimelapseInterval,	N_("Timelapse Interval")},
-		{PTP_DPC_FocusMeteringMode,	N_("Focus Metering Mode")},
-		{PTP_DPC_UploadURL,		N_("Upload URL")},
-		{PTP_DPC_Artist,		N_("Artist")},
-		{PTP_DPC_CopyrightInfo,		N_("Copyright Info")},
-		{0,NULL}
-	};
-	static struct {
-		uint16_t dpc;
-		const char *txt;
-	} ptp_device_properties_EK[] = {
-		{PTP_DPC_EK_ColorTemperature,	N_("EK Color Temperature")},
-		{PTP_DPC_EK_DateTimeStampFormat,
-					N_("EK Date Time Stamp Format")},
-		{PTP_DPC_EK_BeepMode,		N_("EK Beep Mode")},
-		{PTP_DPC_EK_VideoOut,		N_("EK Video Out")},
-		{PTP_DPC_EK_PowerSaving,	N_("EK Power Saving")},
-		{PTP_DPC_EK_UI_Language,	N_("EK UI Language")},
-		{0,NULL}
-	};
-
-	static struct {
-		uint16_t dpc;
-		const char *txt;
-	} ptp_device_properties_CANON[] = {
-		{PTP_DPC_CANON_BeepMode,	N_("CANON Beep Mode")},
-		{PTP_DPC_CANON_UnixTime,	N_("CANON Time measured in"
-						" secondssince 01-01-1970")},
-		{PTP_DPC_CANON_FlashMemory,
-					N_("CANON Flash Card Capacity")},
-		{PTP_DPC_CANON_CameraModel,	N_("CANON Camera Model")},
-		{0,NULL}
-	};
-/* Nikon Codes added by Corey Manders and Mehreen Chaudary */
-	static struct {
-		uint16_t dpc;
-		const char *txt;
-	} ptp_device_properties_NIKON[] = {
-		{PTP_DPC_NIKON_ShootingBank,	N_("NIKON Shooting Bank")},
-		{PTP_DPC_NIKON_ShootingBankNameA, N_("NIKON Shooting Bank Name A")},
-		{PTP_DPC_NIKON_ShootingBankNameB, N_("NIKON Shooting Bank Name B")},
-		{PTP_DPC_NIKON_ShootingBankNameC, N_("NIKON Shooting Bank Name C")},
-		{PTP_DPC_NIKON_ShootingBankNameD, N_("NIKON Shooting Bank Name D")},
-		{PTP_DPC_NIKON_RawCompression,	N_("NIKON Raw Compression")},
-		{PTP_DPC_NIKON_WhiteBalanceAutoBias, N_("NIKON White Balance Auto Bias")},
-		{PTP_DPC_NIKON_WhiteBalanceTungstenBias, N_("NIKON White Balance Tungsten Bias")},
-		{PTP_DPC_NIKON_WhiteBalanceFlourescentBias, N_("NIKON White Balance Flourescent Bias")},
-		{PTP_DPC_NIKON_WhiteBalanceDaylightBias, N_("NIKON White Balance Daylight Bias")},
-		{PTP_DPC_NIKON_WhiteBalanceFlashBias, N_("NIKON White Balance Flash Bias")},
-		{PTP_DPC_NIKON_WhiteBalanceCloudyBias, N_("NIKON White Balance Cloudy Bias")},
-		{PTP_DPC_NIKON_WhiteBalanceShadeBias, N_("NIKON White Balance Shade Bias")},
-		{PTP_DPC_NIKON_WhiteBalanceColourTemperature, N_("NIKON White Balance Colour Temperature")},
-		{PTP_DPC_NIKON_ImageSharpening, N_("NIKON Image Sharpening")},
-		{PTP_DPC_NIKON_ToneCompensation, N_("NIKON Tone Compensation")},
-		{PTP_DPC_NIKON_ColourMode,	N_("NIKON Colour Mode")},
-		{PTP_DPC_NIKON_HueAdjustment,	N_("NIKON Hue Adjustment")},
-		{PTP_DPC_NIKON_NonCPULensDataFocalLength, N_("NIKON Non CPU Lens Data Focal Length")},
-		{PTP_DPC_NIKON_NonCPULensDataMaximumAperture, N_("NIKON Non CPU Lens Data Maximum Aperture")},
-		{PTP_DPC_NIKON_CSMMenuBankSelect, N_("NIKON CSM Menu Bank Select")},
-		{PTP_DPC_NIKON_MenuBankNameA,	N_("NIKON Menu Bank Name A")},
-		{PTP_DPC_NIKON_MenuBankNameB,	N_("NIKON Menu Bank Name B")},	
-		{PTP_DPC_NIKON_MenuBankNameC,	N_("NIKON Menu Bank Name C")},
-		{PTP_DPC_NIKON_MenuBankNameD,	N_("NIKON Menu Bank Name D")},
-		{PTP_DPC_NIKON_A1AFCModePriority, N_("NIKON (A1) AFC Mode Priority")},
-		{PTP_DPC_NIKON_A2AFSModePriority, N_("NIKON (A2) AFS Mode Priority")},
-		{PTP_DPC_NIKON_A3GroupDynamicAF, N_("NIKON (A3) Group Dynamic AF")},
-		{PTP_DPC_NIKON_A4AFActivation,	N_("NIKON (A4) AF Activation")},	
-		{PTP_DPC_NIKON_A5FocusAreaIllumManualFocus, N_("NIKON (A5) Focus Area Illum Manual Focus")},
-		{PTP_DPC_NIKON_FocusAreaIllumContinuous, N_("NIKON Focus Area Illum Continuous")},
-		{PTP_DPC_NIKON_FocusAreaIllumWhenSelected, N_("NIKON Focus Area Illum When Selected")},
-		{PTP_DPC_NIKON_A6FocusArea,	N_("NIKON (A6) Focus Area")},
-		{PTP_DPC_NIKON_A7VerticalAFON, N_("NIKON (A7) Vertical AF ON")},
-		{PTP_DPC_NIKON_B1ISOAuto,	N_("NIKON (B1) ISO Auto")},
-		{PTP_DPC_NIKON_B2ISOStep,	N_("NIKON (B2) ISO Step")},
-/*		{PTP_DPC_NIKON_B3EVStep,	N_("NIKON (B3) EV Step")}, */
-		{PTP_DPC_NIKON_B4ExposureCompEv, N_("NIKON (B4) Exposure Comp Ev")},
-		{PTP_DPC_NIKON_ExposureCompensation, N_("NIKON Exposure Compensation")},
-		{PTP_DPC_NIKON_CenterWeightArea, N_("NIKON Center Weighted Area")},
-		{PTP_DPC_NIKON_C1AELock,	N_("NIKON (C1) AE Lock Mode")},
-		{PTP_DPC_NIKON_C2AELAFL,	N_("NIKON (C2) AE-L/AF-L Mode")},
-		{PTP_DPC_NIKON_C3AutoMeterOff, N_("NIKON (C3) Auto Meter Off")},
-		{PTP_DPC_NIKON_C4SelfTimer,	N_("NIKON (C4) Self Timer")},	
-		{PTP_DPC_NIKON_C5MonitorOff,	N_("NIKON (C5) Monitor Off")},
-		{PTP_DPC_NIKON_D1ShootingSpeed, N_("NIKON (D1) Shooting Speed")},
-		{PTP_DPC_NIKON_D2MaximumShots, N_("NIKON (D2) Maximum Shots")},
-		{PTP_DPC_NIKON_D3ExpDelayMode,	N_("NIKON (D3) ExpDelayMode")},	
-		{PTP_DPC_NIKON_LongExposureNoiseReduction, N_("NIKON Long Exposure Noise Reduction")},
-		{PTP_DPC_NIKON_D5FileNumberSequence, N_("NIKON (D5) File Number Sequence")},
-		{PTP_DPC_NIKON_D6ControlPanelFinderRearControl, N_("NIKON (D6) Control Panel Finder Rear Control")},
-		{PTP_DPC_NIKON_ControlPanelFinderViewfinder, N_("NIKON Control Panel Finder Viewfinder")},
-		{PTP_DPC_NIKON_D7Illumination,	N_("NIKON (D7) Illumination")},
-		{PTP_DPC_NIKON_E1FlashSyncSpeed, N_("NIKON (E1) Flash Sync Speed")},
-		{PTP_DPC_NIKON_E2FlashShutterSpeed, N_("NIKON (E2) Flash Shutter Speed")},
-		{PTP_DPC_NIKON_E3AAFlashMode, N_("NIKON (E3) AA Flash Mode")},
-		{PTP_DPC_NIKON_E4ModelingFlash,	N_("NIKON (E4) Modeling Flash")},
-		{PTP_DPC_NIKON_E5AutoBracketSet, N_("NIKON (E5) Auto Bracket Set")},
-		{PTP_DPC_NIKON_E6ManualModeBracketing, N_("NIKON (E6) Manual Mode Bracketing")},
-		{PTP_DPC_NIKON_E7AutoBracketOrder, N_("NIKON (E7) Auto Bracket Order")},
-		{PTP_DPC_NIKON_E8AutoBracketSelection, N_("NIKON (E8) Auto Bracket Selection")},
-		{PTP_DPC_NIKON_F1CenterButtonShootingMode, N_("NIKON (F1) Center Button Shooting Mode")},
-		{PTP_DPC_NIKON_CenterButtonPlaybackMode, N_("NIKON Center Button Playback Mode")},
-		{PTP_DPC_NIKON_F2Multiselector, N_("NIKON (F2) Multiselector")},
-		{PTP_DPC_NIKON_F3PhotoInfoPlayback, N_("NIKON (F3) PhotoInfoPlayback")},	
-		{PTP_DPC_NIKON_F4AssignFuncButton, N_("NIKON (F4) Assign Function Button")},
-		{PTP_DPC_NIKON_F5CustomizeCommDials, N_("NIKON (F5) Customize Comm Dials")},
-		{PTP_DPC_NIKON_ChangeMainSub,	N_("NIKON Change Main Sub")},
-		{PTP_DPC_NIKON_ApertureSetting, N_("NIKON Aperture Setting")},
-		{PTP_DPC_NIKON_MenusAndPlayback, N_("NIKON Menus and Playback")},
-		{PTP_DPC_NIKON_F6ButtonsAndDials, N_("NIKON (F6) Buttons and Dials")},
-		{PTP_DPC_NIKON_F7NoCFCard,	N_("NIKON (F7) No CF Card")},
-		{PTP_DPC_NIKON_AutoImageRotation, N_("NIKON Auto Image Rotation")},
-		{PTP_DPC_NIKON_ExposureBracketing, N_("NIKON Exposure Bracketing")},
-		{PTP_DPC_NIKON_ExposureBracketingIntervalDist, N_("NIKON Exposure Bracketing Interval Distance")},
-		{PTP_DPC_NIKON_ExposureBracketingNumBracketPlace, N_("NIKON Exposure Bracketing Number Bracket Place")},
-		{PTP_DPC_NIKON_AutofocusLCDTopMode2, N_("NIKON Autofocus LCD Top Mode 2")},
-		{PTP_DPC_NIKON_AutofocusArea, N_("NIKON Autofocus Area selector")},
-		{PTP_DPC_NIKON_LightMeter,	N_("NIKON Light Meter")},
-		{PTP_DPC_NIKON_ExposureApertureLock, N_("NIKON Exposure Aperture Lock")},
-		{PTP_DPC_NIKON_MaximumShots,	N_("NIKON Maximum Shots")},
-                {PTP_DPC_NIKON_Beep, N_("NIKON AF Beep Mode")},
-                {PTP_DPC_NIKON_AFC, N_("NIKON ??? AF Related")},
-                {PTP_DPC_NIKON_AFAssistOFF, N_("NIKON AF Assist Lamp")},
-                {PTP_DPC_NIKON_PADVPMode, N_("NIKON Auto ISO P/A/DVP Setting")},
-                {PTP_DPC_NIKON_ReviewOff, N_("NIKON Image Review")},
-                {PTP_DPC_NIKON_GridDisplay, N_("NIKON Viewfinder Grid Display")},
-                {PTP_DPC_NIKON_AFAreaIllumination, N_("NIKON AF Area Illumination")},
-                {PTP_DPC_NIKON_FlashMode, N_("NIKON Flash Mode")},
-                {PTP_DPC_NIKON_FLashCommanderMode, N_("NIKON Flash Commander Mode")},
-                {PTP_DPC_NIKON_FlashSignOff, N_("NIKON Flash Sign")},
-                {PTP_DPC_NIKON_GridDisplay, N_("NIKON Grid Display")},
-                {PTP_DPC_NIKON_FlashModeManualPower, N_("NIKON Manual Flash Power")},
-                {PTP_DPC_NIKON_FlashModeCommanderPower, N_("NIKON Commander Flash Power")},
-                {PTP_DPC_NIKON_FlashExposureCompensation, N_("NIKON Flash Exposure Compensation")},
-                {PTP_DPC_NIKON_RemoteTimeout, N_("NIKON Remote Timeout")},
-                {PTP_DPC_NIKON_ImageCommentString, N_("NIKON Image Comment String")},
-                {PTP_DPC_NIKON_FlashOpen, N_("NIKON Flash Open")},
-                {PTP_DPC_NIKON_FlashCharged, N_("NIKON Flash Charged")},
-                {PTP_DPC_NIKON_LensID, N_("NIKON Lens ID")},
-                {PTP_DPC_NIKON_FocalLengthMin, N_("NIKON Min. Focal Length")},
-                {PTP_DPC_NIKON_FocalLengthMax, N_("NIKON Max. Focal Length")},
-                {PTP_DPC_NIKON_MaxApAtMinFocalLength, N_("NIKON Max. Aperture at Min. Focal Length")},
-                {PTP_DPC_NIKON_MaxApAtMaxFocalLength, N_("NIKON Max. Aperture at Max. Focal Length")},
-                {PTP_DPC_NIKON_LowLight, N_("NIKON Low Light")},
-                {PTP_DPC_NIKON_ExtendedCSMMenu, N_("NIKON Extended CSM Menu")},
-                {PTP_DPC_NIKON_OptimiseImage, N_("NIKON Optimise Image")},
-                {PTP_DPC_NIKON_ImageCommentAttached, N_("NIKON Image Comment")},
-                {PTP_DPC_NIKON_AutoExposureLock, N_("NIKON AE Lock")},
-                {PTP_DPC_NIKON_AutoFocusLock, N_("NIKON AF Lock")},
-                {PTP_DPC_NIKON_CameraOrientation, N_("NIKON Camera orientation")},
-                {PTP_DPC_NIKON_FlashSignOFF, N_("NIKON Flash Sign Off")},
-                {PTP_DPC_NIKON_EVStep, N_("NIKON EV Step")},
-
-		{0,NULL}
-	};
-
-	for (i=0; ptp_device_properties[i].txt!=NULL; i++)
-		if (ptp_device_properties[i].dpc==dpc)
-			return (ptp_device_properties[i].txt);
-
-	/*if (dpc|PTP_DPC_EXTENSION_MASK==PTP_DPC_EXTENSION)*/
-	switch (params->deviceinfo.VendorExtensionID) {
-		case PTP_VENDOR_EASTMAN_KODAK:
-			for (i=0; ptp_device_properties_EK[i].txt!=NULL; i++)
-				if (ptp_device_properties_EK[i].dpc==dpc)
-					return (ptp_device_properties_EK[i].txt);
-			break;
-
-		case PTP_VENDOR_CANON:
-			for (i=0; ptp_device_properties_CANON[i].txt!=NULL; i++)
-				if (ptp_device_properties_CANON[i].dpc==dpc)
-					return (ptp_device_properties_CANON[i].txt);
-			break;
-		case PTP_VENDOR_NIKON:
-			for (i=0; ptp_device_properties_NIKON[i].txt!=NULL; i++)
-				if (ptp_device_properties_NIKON[i].dpc==dpc)
-					return (ptp_device_properties_NIKON[i].txt);
-			break;
-	
-
-		}
 	return NULL;
 }
 

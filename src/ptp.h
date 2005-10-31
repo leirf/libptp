@@ -202,6 +202,9 @@ typedef struct _PTPUSBEventContainer PTPUSBEventContainer;
 #define PTP_RC_EK_FilenameConflicts	0xA002
 #define PTP_RC_EK_FilenameInvalid	0xA003
 
+/* NIKON extension Response Codes */
+#define PTP_RC_NIKON_PropertyReadOnly	0xA005
+
 /* Proprietary vendor extension response code mask */
 #define PTP_RC_EXTENSION_MASK		0xF000
 #define PTP_RC_EXTENSION		0xA000
@@ -821,7 +824,6 @@ uint16_t ptp_canon_getfolderentries (PTPParams* params, uint32_t store,
 
 /* Non PTP protocol functions */
 int ptp_operation_issupported	(PTPParams* params, uint16_t operation);
-int ptp_property_issupported	(PTPParams* params, uint16_t property);
 
 void ptp_free_devicepropdesc	(PTPDevicePropDesc* dpd);
 void ptp_perror			(PTPParams* params, uint16_t error);
@@ -829,8 +831,16 @@ const char*
 ptp_get_datatype_name		(PTPParams* params, uint16_t dt);
 const char*
 ptp_get_operation_name		(PTPParams* params, uint16_t oc);
+
+int ptp_prop_issupported	(PTPParams* params, uint16_t property);
 const char*
-ptp_get_property_name		(PTPParams* params, uint16_t dpc);
+ptp_prop_getname		(PTPParams* params, uint16_t dpc);
+
+/* Properties handling functions */
+const char* ptp_prop_getdesc(PTPParams* params, PTPDevicePropDesc *dpd,
+				void *val);
+const char * ptp_prop_tostr (PTPParams* params, PTPDevicePropDesc *dpd,
+				void *val);
 
 
 
