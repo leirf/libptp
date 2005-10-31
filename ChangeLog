@@ -1,3 +1,13 @@
+2005-10-31 Mariusz Woloszyn
+	* src/ptp.c: added more debug, moved property code to properties.c
+	* src/ptp.h: added new property handling functions
+	* src/ptpcam.c: change verbose meaning (-v detailed info,
+	  --verbose=2 and more debug information), introduced properties
+	  meaningfull display code
+	* src/properties.c: file added; properties values interpretation
+	  code
+	* src/Makefile.am: added properties.c
+
 2005-10-30 Mariusz Woloszyn
 	* src/ptp.c, src/ptp.h: code cleanup and typos fixed;
 	  added more comments, introduced ptp_get_datatype_name(),
