@@ -632,6 +632,7 @@ typedef struct _PTPCANONFolderEntry PTPCANONFolderEntry;
 #define PTP_DPC_NIKON_FocalLengthMax                    0xD0E4
 #define PTP_DPC_NIKON_MaxApAtMinFocalLength             0xD0E5
 #define PTP_DPC_NIKON_MaxApAtMaxFocalLength             0xD0E6
+#define PTP_DPC_NIKON_ExposureTime			0xD100
 #define PTP_DPC_NIKON_MaximumShots			0xD103
 #define PTP_DPC_NIKON_AutoExposureLock			0xD105
 #define PTP_DPC_NIKON_AutoFocusLock			0xD106
@@ -837,11 +838,17 @@ const char*
 ptp_prop_getname		(PTPParams* params, uint16_t dpc);
 
 /* Properties handling functions */
-const char* ptp_prop_getdesc(PTPParams* params, PTPDevicePropDesc *dpd,
-				void *val);
-const char * ptp_prop_tostr (PTPParams* params, PTPDevicePropDesc *dpd,
-				void *val);
+const char* ptp_prop_getdesc	(PTPParams* params, PTPDevicePropDesc *dpd,
+					void *val);
+const char* ptp_prop_getdescbystring
+				(PTPParams* params,PTPDevicePropDesc *dpd,
+				const char *strval);
 
+const char * ptp_prop_tostr	(PTPParams* params, PTPDevicePropDesc *dpd,
+					void *val);
+uint16_t ptp_prop_getcodebyname	(PTPParams* params, char* propname);
+const char* ptp_prop_getvalbyname
+				(PTPParams* params, char* name, uint16_t dpc);
 
 
 #endif /* __PTP_H__ */

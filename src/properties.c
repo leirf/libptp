@@ -177,6 +177,7 @@ static struct {
 	{PTP_DPC_NIKON_SelfTimer,	N_("NIKON Self Timer")},	
 	{PTP_DPC_NIKON_MonitorOff,	N_("NIKON Monitor Off")},
 	{PTP_DPC_NIKON_D1ShootingSpeed, N_("NIKON (D1) Shooting Speed")},
+	{PTP_DPC_NIKON_ExposureTime, N_("NIKON Exposure Time")},
 	{PTP_DPC_NIKON_D2MaximumShots, N_("NIKON (D2) Maximum Shots")},
 	{PTP_DPC_NIKON_D3ExpDelayMode,	N_("NIKON (D3) ExpDelayMode")},	
 	{PTP_DPC_NIKON_LongExposureNoiseReduction, N_("NIKON Long Exposure Noise Reduction")},
@@ -284,6 +285,38 @@ ptp_prop_getname(PTPParams* params, uint16_t dpc)
 	return NULL;
 }
 
+uint16_t
+ptp_prop_getcodebyname(PTPParams* params, char* name)
+{
+	int i;
+	for (i=0; ptp_device_properties[i].txt!=NULL; i++)
+		if (!strncasecmp(ptp_device_properties[i].txt,name,
+			strlen(name)))
+			return ptp_device_properties[i].dpc;
+
+	/* XXX*/
+	for (i=0; ptp_device_properties_NIKON[i].txt!=NULL; i++)
+		if (!strncasecmp(ptp_device_properties_NIKON[i].txt,name,
+			strlen(name)))
+			return ptp_device_properties_NIKON[i].dpc;
+
+	return 0;
+}
+
+/* properties interpretation */
+
+static const char*
+ptp_prop_NIKON_d100(PTPParams* params, PTPDevicePropDesc *dpd, char* strval)
+{
+	static char strvalret[SVALLEN];
+	uint32_t val= (uint32_t) strtol (strval, NULL, 10);
+	uint16_t numerator=(uint16_t) (val >> 16);
+	uint16_t denominator=(uint16_t) val;
+	int n;
+
+	n=snprintf(strvalret,SVALLEN,"%i/%i",numerator, denominator);
+	SVALRET(strvalret);
+}
 
 static const char*
 ptp_prop_getdescscale10000(PTPParams* params, PTPDevicePropDesc *dpd, char* strval)
@@ -423,7 +456,7 @@ static struct {
 	uint16_t dpc;
 	char *val;
 	const char *txt;
-} pd[] = {
+} ptp_property_meaning[] = {
 	{PTP_DPC_WhiteBalance, "1", N_("Manual")},
 	{PTP_DPC_WhiteBalance, "2", N_("Automatic")},
 	{PTP_DPC_WhiteBalance, "3", N_("One-push Automatic")},
@@ -469,7 +502,7 @@ static struct {
 	uint16_t dpc;
 	char *val;
 	const char *txt;
-} pd_NIKONN[] = {
+} ptp_property_meaning_NIKON[] = {
 	{PTP_DPC_CompressionSetting, "0", N_("JPEG Basic")},
 	{PTP_DPC_CompressionSetting, "1", N_("JPEG Normal")},
 	{PTP_DPC_CompressionSetting, "2", N_("JPEG Fine")},
@@ -697,14 +730,18 @@ static struct {
 	{PTP_DPC_NIKON_FlashOpen, "1", N_("Yes")},
 	{PTP_DPC_NIKON_FlashCharged, "0", N_("No")},
 	{PTP_DPC_NIKON_FlashCharged, "1", N_("Yes")},
+	{PTP_DPC_NIKON_AutoExposureLock, "1", N_("Locked")},
+	{PTP_DPC_NIKON_AutoExposureLock, "0", N_("Not Locked")},
 
 	{PTP_DPC_ExposureTime, "4294967295", N_("bulb")},
+	{PTP_DPC_NIKON_ExposureTime, "4294967295", N_("bulb")},
 
 	/* returned by function call */
 	{PTP_DPC_NIKON_FocalLengthMin, (char*) ptp_prop_getdescscale100, NULL},
 	{PTP_DPC_NIKON_FocalLengthMax, (char*) ptp_prop_getdescscale100, NULL},
 	{PTP_DPC_NIKON_MaxApAtMinFocalLength,(char*) ptp_prop_getdescscale100, NULL},
 	{PTP_DPC_NIKON_MaxApAtMaxFocalLength,(char*) ptp_prop_getdescscale100, NULL},
+	{PTP_DPC_NIKON_ExposureTime,(char*) ptp_prop_NIKON_d100, NULL},
 	{0, NULL, NULL}
 };
 
@@ -726,6 +763,34 @@ static struct {
 	}
 
 /**
+ * ptp_prop_getdescbystring:
+ * params:	PTPParams*
+ * 		PTPDevicePropDesc *dpd	- Device Property structure
+ *		void *value		- if not null convert this value
+ *					  (used internaty to convert
+ *					   values other than current)
+ *
+ * Returns:	pointer to staticaly allocated buffer with property value
+ *		meaning as string
+ *
+ **/
+const char*
+ptp_prop_getdescbystring(PTPParams* params,PTPDevicePropDesc *dpd,const char *strval)
+{
+	int i;
+
+	switch (params->deviceinfo.VendorExtensionID) {
+		case PTP_VENDOR_NIKON:
+			RETPROPDESC(ptp_property_meaning_NIKON);
+			break;
+	}
+
+	RETPROPDESC(ptp_property_meaning);
+
+	return NULL;
+}
+
+/**
  * ptp_prop_getdesc:
  * params:	PTPParams*
  * 		PTPDevicePropDesc *dpd	- Device Property structure
@@ -740,20 +805,11 @@ static struct {
 const char*
 ptp_prop_getdesc(PTPParams* params, PTPDevicePropDesc *dpd, void *val)
 {
-	int i;
 	const char *strval;
 	/* Get Device Property value as string */
 	strval=ptp_prop_tostr(params, dpd, val);
-
-	switch (params->deviceinfo.VendorExtensionID) {
-		case PTP_VENDOR_NIKON:
-			RETPROPDESC(pd_NIKONN);
-			break;
-	}
-
-	RETPROPDESC(pd);
-
-	return NULL;
+	
+	return ptp_prop_getdescbystring(params, dpd, strval);
 }
 
 /**
@@ -801,6 +857,27 @@ ptp_prop_tostr (PTPParams* params, PTPDevicePropDesc *dpd, void *val)
 			n=snprintf(strval,SVALLEN,"\"%s\"",(char *)value);
 			SVALRET(strval);
 	}
+	return NULL;
+}
+
+const char*
+ptp_prop_getvalbyname(PTPParams* params, char* name, uint16_t dpc)
+{
+	int i;
+	/* doeasn't match for function interpretation */
+	for (i=0; ptp_property_meaning[i].txt!=NULL; i++)
+		if (ptp_property_meaning[i].dpc==dpc)
+			if (! strncasecmp(ptp_property_meaning[i].txt,name,
+				strlen(name)))
+				return ptp_property_meaning[i].val;
+
+	/* XXX */
+	for (i=0; ptp_property_meaning_NIKON[i].txt!=NULL; i++)
+		if (ptp_property_meaning_NIKON[i].dpc==dpc)
+			if (!strncasecmp(ptp_property_meaning_NIKON[i].txt,name,
+				strlen(name)))
+				return ptp_property_meaning_NIKON[i].val;
+
 	return NULL;
 }
 

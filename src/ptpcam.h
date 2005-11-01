@@ -36,7 +36,8 @@ int myusb_bulk_write(usb_dev_handle *dev, int ep, char *bytes, int length,
  */
 
 /* Check value and Return on error */
-#define CR(result,error) {						\
+#define CR(o,error) {						\
+			uint16_t result=o;				\
 			if((result)!=PTP_RC_OK) {			\
 				ptp_perror(&params,result);		\
 				fprintf(stderr,"ERROR: "error);		\
@@ -90,6 +91,7 @@ int myusb_bulk_write(usb_dev_handle *dev, int ep, char *bytes, int length,
 #define ACT_LOOP_CAPTURE	0xD
 #define ACT_SHOW_ALL_PROPERTIES	0xE
 #define ACT_SHOW_UNKNOWN_PROPERTIES	0xF
+#define ACT_SET_PROPBYNAME	0x10
 
 /* printing value type */
 #define PTPCAM_PRINT_HEX	00

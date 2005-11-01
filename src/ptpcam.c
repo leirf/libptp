@@ -983,10 +983,10 @@ print_propval (uint16_t datatype, void* value, short hex)
 
 uint16_t
 set_property (PTPParams* params,
-		uint16_t property, char* value, uint16_t datatype);
+		uint16_t property, const char* value, uint16_t datatype);
 uint16_t
 set_property (PTPParams* params,
-		uint16_t property, char* value, uint16_t datatype)
+		uint16_t property, const char* value, uint16_t datatype)
 {
 	void* val=NULL;
 
@@ -1022,7 +1022,202 @@ set_property (PTPParams* params,
 	free(val);
 	return 0;
 }
+void
+getset_property_internal (PTPParams* params, uint16_t property,const char* value);
+void
+getset_property_internal (PTPParams* params, uint16_t property,const char* value)
+{
+	PTPDevicePropDesc dpd;
+	const char* propname;
+	const char *propdesc;
+	uint16_t result;
 
+
+	memset(&dpd,0,sizeof(dpd));
+	result=ptp_getdevicepropdesc(params,property,&dpd);
+	if (result!=PTP_RC_OK) {
+		ptp_perror(params,result); 
+		fprintf(stderr,"ERROR: "
+		"Could not get device property description!\n"
+		"Try to reset the camera.\n");
+		return ;
+	}
+	/* until this point dpd has to be free()ed */
+	propdesc=ptp_prop_getdesc(params, &dpd, NULL);
+	propname=ptp_prop_getname(params,property);
+
+	if (value==NULL) { /* property GET */
+		if (!verbose) { /* short output, default */
+			printf("'%s' is set to: ", propname==NULL?"UNKNOWN":propname);
+			if (propdesc!=NULL)
+				printf("[%s]", propdesc);
+			else 
+			{
+				if (dpd.FormFlag==PTP_DPFF_Enumeration)
+					PRINT_PROPVAL_HEX(dpd.CurrentValue);
+				else 
+					PRINT_PROPVAL_DEC(dpd.CurrentValue);
+			}
+			printf("\n");
+	
+		} else { /* verbose output */
+	
+			printf("%s: [0x%04x, ",propname==NULL?"UNKNOWN":propname,
+					property);
+			if (dpd.GetSet==PTP_DPGS_Get)
+				printf ("readonly, ");
+			else
+				printf ("readwrite, ");
+			printf ("%s] ",
+				ptp_get_datatype_name(params, dpd.DataType));
+
+			printf ("\n  Current value: ");
+			if (dpd.FormFlag==PTP_DPFF_Enumeration)
+				PRINT_PROPVAL_HEX(dpd.CurrentValue);
+			else 
+				PRINT_PROPVAL_DEC(dpd.CurrentValue);
+
+			if (propdesc!=NULL)
+				printf(" [%s]", propdesc);
+			printf ("\n  Factory value: ");
+			if (dpd.FormFlag==PTP_DPFF_Enumeration)
+				PRINT_PROPVAL_HEX(dpd.FactoryDefaultValue);
+			else 
+				PRINT_PROPVAL_DEC(dpd.FactoryDefaultValue);
+			propdesc=ptp_prop_getdesc(params, &dpd,
+						dpd.FactoryDefaultValue);
+			if (propdesc!=NULL)
+				printf(" [%s]", propdesc);
+			printf("\n");
+
+			switch (dpd.FormFlag) {
+			case PTP_DPFF_Enumeration:
+				{
+					int i;
+					printf ("Enumerated:\n");
+					for(i=0;i<dpd.FORM.Enum.NumberOfValues;i++){
+						PRINT_PROPVAL_HEX(
+						dpd.FORM.Enum.SupportedValue[i]);
+						propdesc=ptp_prop_getdesc(params, &dpd, dpd.FORM.Enum.SupportedValue[i]);
+						if (propdesc!=NULL) printf("\t[%s]", propdesc);
+						printf("\n");
+					}
+				}
+				break;
+			case PTP_DPFF_Range:
+				printf ("Range [");
+				PRINT_PROPVAL_DEC(dpd.FORM.Range.MinimumValue);
+				printf(" - ");
+				PRINT_PROPVAL_DEC(dpd.FORM.Range.MaximumValue);
+				printf("; step ");
+				PRINT_PROPVAL_DEC(dpd.FORM.Range.StepSize);
+				printf("]\n");
+				break;
+			case PTP_DPFF_None:
+				break;
+			}
+		}
+	} else {
+		uint16_t r;
+		propdesc=ptp_prop_getdesc(params, &dpd, NULL);
+		printf("'%s' is set to: ", propname==NULL?"UNKNOWN":propname);
+		if (propdesc!=NULL)
+			printf("[%s]", propdesc);
+		else
+		{
+			if (dpd.FormFlag==PTP_DPFF_Enumeration)
+				PRINT_PROPVAL_HEX(dpd.CurrentValue);
+			else 
+				PRINT_PROPVAL_DEC(dpd.CurrentValue);
+		}
+		printf("\n");
+		
+		printf("Changing property value to %s [%s] ",
+			value,
+			ptp_prop_getdescbystring(params, &dpd, value));
+		r=(set_property(params, property, value, dpd.DataType));
+		if (r!=PTP_RC_OK)
+		{
+			printf ("FAILED!!!\n");
+			fflush(NULL);
+		        ptp_perror(params,r);
+		}
+		else 
+			printf ("succeeded.\n");
+	}
+
+	ptp_free_devicepropdesc(&dpd);
+}
+
+void
+getset_propertybyname (int busn,int devn,char* property,char* value,short force);
+void
+getset_propertybyname (int busn,int devn,char* property,char* value,short force)
+{
+	PTPParams params;
+	PTP_USB ptp_usb;
+	struct usb_device *dev;
+	char *p;
+	uint16_t dpc;
+	const char *propval=NULL;
+
+	printf("\n");
+
+	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
+		return;
+
+	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
+		"Could not get device info\nTry to reset the camera.\n");
+
+	printf("Camera: %s",params.deviceinfo.Model);
+	if ((devn!=0)||(busn!=0)) 
+		printf(" (bus %i, dev %i)\n",busn,devn);
+	else
+		printf("\n");
+
+	if (property==NULL) {
+		fprintf(stderr,"ERROR: no such property\n");
+		return;
+	}
+		
+	/* 
+	1. change all '-' in property and value to ' '
+	2. change all '  ' in property and value to '-'
+	3. get property code by name
+	4. get value code by name
+	5. set property
+	*/
+	while ((p=index(property,'-'))!=NULL) {
+		*p=' ';
+	}
+
+	dpc=ptp_prop_getcodebyname(&params, property);
+	if (dpc==0) {
+		fprintf(stderr, "ERROR: Could not find property '%s'\n",
+			property);
+		close_camera(&ptp_usb, &params, dev);
+		return;
+	}
+
+	if (!ptp_prop_issupported(&params, dpc))
+	{
+		fprintf(stderr,"The device does not support this property!\n");
+		CR(ptp_closesession(&params), "Could not close session!\n"
+			"Try to reset the camera.\n");
+	}
+
+	if (value!=NULL) {
+		while ((p=index(value,'-'))!=NULL) {
+			*p=' ';
+		}
+		propval=ptp_prop_getvalbyname(&params, value, dpc);
+		if (propval==NULL) propval=value;
+	}
+
+	getset_property_internal (&params, dpc,propval);
+
+	close_camera(&ptp_usb, &params, dev);
+}
 void
 getset_property (int busn,int devn,uint16_t property,char* value,short force);
 void
@@ -1031,9 +1226,6 @@ getset_property (int busn,int devn,uint16_t property,char* value,short force)
 	PTPParams params;
 	PTP_USB ptp_usb;
 	struct usb_device *dev;
-	PTPDevicePropDesc dpd;
-	const char* propname;
-	const char *propdesc;
 
 	printf ("\n");
 
@@ -1042,7 +1234,6 @@ getset_property (int busn,int devn,uint16_t property,char* value,short force)
 
 	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
 		"Could not get device info\nTry to reset the camera.\n");
-	propname=ptp_prop_getname(&params,property);
 	printf("Camera: %s",params.deviceinfo.Model);
 	if ((devn!=0)||(busn!=0)) 
 		printf(" (bus %i, dev %i)\n",busn,devn);
@@ -1055,11 +1246,15 @@ getset_property (int busn,int devn,uint16_t property,char* value,short force)
 			"Try to reset the camera.\n");
 		return;
 	}
+
+	getset_property_internal (&params, property,value);
+#if 0
 	memset(&dpd,0,sizeof(dpd));
 	CR(ptp_getdevicepropdesc(&params,property,&dpd),
 		"Could not get device property description!\n"
 		"Try to reset the camera.\n");
 	propdesc= ptp_prop_getdesc(&params, &dpd, NULL);
+	propname=ptp_prop_getname(&params,property);
 
 	if (value==NULL) { /* property GET */
 		if (!verbose) { /* short output, default */
@@ -1159,9 +1354,9 @@ getset_property (int busn,int devn,uint16_t property,char* value,short force)
 			printf ("succeeded.\n");
 	}
 	ptp_free_devicepropdesc(&dpd);
-	CR(ptp_closesession(&params), "Could not close session!\n"
-	"Try to reset the camera.\n");
-	close_usb(&ptp_usb, dev);
+#endif
+
+	close_camera(&ptp_usb, &params, dev);
 }
 
 void
@@ -1174,6 +1369,7 @@ show_all_properties (int busn,int devn,short force, int unknown)
 	struct usb_device *dev;
 	PTPDevicePropDesc dpd;
 	const char* propname;
+	const char *propdesc;
 	int i;
 
 	printf ("\n");
@@ -1201,10 +1397,16 @@ show_all_properties (int busn,int devn,short force, int unknown)
 			params.deviceinfo.DevicePropertiesSupported[i],&dpd),
 			"Could not get device property description!\n"
 			"Try to reset the camera.\n");
-	
+		propdesc= ptp_prop_getdesc(&params, &dpd, NULL);
+
 		PRINT_PROPVAL_HEX(dpd.CurrentValue);
-		if (verbose)
-			printf (" (%s)",propname==NULL?"UNKNOWN":propname);
+		if (verbose) {
+			printf (" (%s",propname==NULL?"UNKNOWN":propname);
+			if (propdesc!=NULL)
+				printf(": %s)",propdesc);
+			else
+				printf(")");
+		}
 	
 		printf("\n");
 		ptp_free_devicepropdesc(&dpd);
@@ -1341,6 +1543,7 @@ main(int argc, char ** argv)
 	int overwrite=SKIP_IF_EXISTS;
 	uint16_t property=0;
 	char* value=NULL;
+	char* propstr=NULL;
 	uint32_t handle=0;
 	char *filename=NULL;
 	int num=0;
@@ -1359,6 +1562,7 @@ main(int argc, char ** argv)
 		{"show-unknown-properties",0,0,0},
 		{"show-property",1,0,'s'},
 		{"set-property",1,0,'s'},
+		{"set",1,0,0},
 		{"get-file",1,0,'g'},
 		{"get-all-files",0,0,'G'},
 		{"capture",0,0,'c'},
@@ -1400,7 +1604,11 @@ main(int argc, char ** argv)
 				action=ACT_SHOW_ALL_PROPERTIES;
 			if (!(strcmp("show-unknown-properties", loptions[option_index].name)))
 				action=ACT_SHOW_UNKNOWN_PROPERTIES;
-
+			if (!(strcmp("set",loptions[option_index].name)))
+			{
+				propstr=strdup(optarg);
+				action=ACT_SET_PROPBYNAME;
+			}
 			break;
 		case 'f':
 			force=~force;
@@ -1511,6 +1719,9 @@ main(int argc, char ** argv)
 			break;
 		case ACT_SHOW_UNKNOWN_PROPERTIES:
 			show_all_properties(busn,devn,force,1);
+			break;
+		case ACT_SET_PROPBYNAME:
+			getset_propertybyname(busn,devn,propstr,value,force);
 	}
 
 	return 0;
