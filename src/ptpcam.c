@@ -117,7 +117,9 @@ help()
 					"(or set its value,\n"
 	"                               if used in conjunction with --val)\n"
 	"  --set-property=NUMBER        Set property value (--val required)\n"
-	"  --val=VALUE                  Property value\n"
+	"  --set=NAME                   Set property provided by name\n"
+	"  --val=VALUE                  Property value (numeric for --set-property and\n"
+	"                               string or numeric for --set)\n"
 	"  --show-all-properties        Show all properties values\n"
 	"  --show-unknown-properties    Show unknown properties values\n"
 	"  -L, --list-files             List all files\n"
@@ -1131,10 +1133,15 @@ getset_property_internal (PTPParams* params, uint16_t property,const char* value
 				PRINT_PROPVAL_DEC(dpd.CurrentValue);
 		}
 		printf("\n");
-		
+
+		propdesc=ptp_prop_getdescbystring(params, &dpd, value);
+		if (propdesc==NULL) {
+			fprintf(stderr, "ERROR: Unable to set property to unidentified value: '%s'\n",
+				value);
+			goto out;
+		}
 		printf("Changing property value to %s [%s] ",
-			value,
-			ptp_prop_getdescbystring(params, &dpd, value));
+			value,propdesc);
 		r=(set_property(params, property, value, dpd.DataType));
 		if (r!=PTP_RC_OK)
 		{
@@ -1145,6 +1152,7 @@ getset_property_internal (PTPParams* params, uint16_t property,const char* value
 		else 
 			printf ("succeeded.\n");
 	}
+	out:
 
 	ptp_free_devicepropdesc(&dpd);
 }
@@ -1202,8 +1210,8 @@ getset_propertybyname (int busn,int devn,char* property,char* value,short force)
 	if (!ptp_prop_issupported(&params, dpc))
 	{
 		fprintf(stderr,"The device does not support this property!\n");
-		CR(ptp_closesession(&params), "Could not close session!\n"
-			"Try to reset the camera.\n");
+		close_camera(&ptp_usb, &params, dev);
+		return;
 	}
 
 	if (value!=NULL) {

@@ -1,3 +1,8 @@
+2005-11-01 Mariusz Woloszyn
+	* src/*.[ch]: Introduced --set; introduced code allowing reading and
+	setting properties by names and sybolic values: like
+	ptpcam --set NIKON-Saturation --val Enhanced, (abreviations allowed);
+
 2005-10-31 Mariusz Woloszyn
 	* src/ptp.c: added more debug, moved property code to properties.c
 	* src/ptp.h: added new property handling functions
