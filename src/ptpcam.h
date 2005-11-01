@@ -38,6 +38,7 @@ int myusb_bulk_write(usb_dev_handle *dev, int ep, char *bytes, int length,
 /* Check value and Return on error */
 #define CR(result,error) {						\
 			if((result)!=PTP_RC_OK) {			\
+				ptp_perror(&params,result);		\
 				fprintf(stderr,"ERROR: "error);		\
 				close_camera(&ptp_usb, &params, dev);   \
 				return;					\
