@@ -585,7 +585,7 @@ typedef struct _PTPCANONFolderEntry PTPCANONFolderEntry;
 #define PTP_DPC_NIKON_A7VerticalAFON			0xD050
 #define PTP_DPC_NIKON_ISOAuto				0xD054
 #define PTP_DPC_NIKON_B2ISOStep				0xD055
-/*#define PTP_DPC_NIKON_B3EVStep				0xD056 */
+#define PTP_DPC_NIKON_EVStep				0xD056
 #define PTP_DPC_NIKON_B4ExposureCompEv			0xD057
 #define PTP_DPC_NIKON_ExposureCompensation		0xD058
 #define PTP_DPC_NIKON_CenterWeightArea			0xD059
@@ -640,27 +640,26 @@ typedef struct _PTPCANONFolderEntry PTPCANONFolderEntry;
 #define PTP_DPC_NIKON_LightMeter			0xD10A
 #define PTP_DPC_NIKON_CameraOrientation			0xD10E
 #define PTP_DPC_NIKON_ExposureApertureLock		0xD111
-#define PTP_DPC_NIKON_Beep                              0xD160
-#define PTP_DPC_NIKON_AFC                               0xD161
-#define PTP_DPC_NIKON_AFAssistOFF			0xD163
+#define PTP_DPC_NIKON_BeepOff				0xD160
+#define PTP_DPC_NIKON_AutofocusMode			0xD161
+#define PTP_DPC_NIKON_AFAssist				0xD163
 #define PTP_DPC_NIKON_PADVPMode                         0xD164
-#define PTP_DPC_NIKON_ReviewOff                         0xD165
+#define PTP_DPC_NIKON_ImageReview			0xD165
 #define PTP_DPC_NIKON_AFAreaIllumination                0xD166
 #define PTP_DPC_NIKON_FlashMode                         0xD167
-#define PTP_DPC_NIKON_FLashCommanderMode		0xD168
-#define PTP_DPC_NIKON_FlashSignOFF			0xD169
+#define PTP_DPC_NIKON_FlashCommanderMode		0xD168
+#define PTP_DPC_NIKON_FlashSign				0xD169
 #define PTP_DPC_NIKON_GridDisplay                       0xD16C
 #define PTP_DPC_NIKON_FlashModeManualPower		0xD16D
 #define PTP_DPC_NIKON_FlashModeCommanderPower		0xD16E
-#define PTP_DPC_NIKON_FlashSignOff                      0xD169
 #define PTP_DPC_NIKON_RemoteTimeout                     0xD16B
 #define PTP_DPC_NIKON_GridDisplay			0xD16C
-#define PTP_DPC_NIKON_EVStep				0xD190
+#define PTP_DPC_NIKON_BracketingIncrement		0xD190
 #define PTP_DPC_NIKON_LowLight                          0xD1B0
 #define PTP_DPC_NIKON_FlashOpen                         0xD1C0
 #define PTP_DPC_NIKON_FlashCharged                      0xD1C1
 #define PTP_DPC_NIKON_FlashExposureCompensation         0xD126
-#define PTP_DPC_NIKON_ExtendedCSMMenu		        0xD180
+#define PTP_DPC_NIKON_CSMMenu			        0xD180
 #define PTP_DPC_NIKON_OptimizeImage		        0xD140
 #define PTP_DPC_NIKON_Saturation		        0xD142
 
