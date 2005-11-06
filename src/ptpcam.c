@@ -927,6 +927,11 @@ list_properties (int busn, int devn, short force)
 
 	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
 		return;
+/* XXX */
+#if 0
+	CR(ptp_nikon_setcontrolmode(&params, 0x01),
+		"Unable to set Nikon PC controll mode\n");
+#endif
 	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
 		"Could not get device info\n");
 	printf("Camera: %s\n",params.deviceinfo.Model);

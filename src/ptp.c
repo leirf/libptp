@@ -1332,6 +1332,21 @@ ptp_canon_getfolderentries (PTPParams* params, uint32_t store, uint32_t p2,
 }
 
 
+/* Nikon extension code */
+
+uint16_t
+ptp_nikon_setcontrolmode (PTPParams* params, uint32_t mode)
+{
+	PTPContainer ptp;
+	
+	PTP_CNT_INIT(ptp);
+	ptp.Code=PTP_OC_NIKON_SetControlMode;
+	ptp.Param1=mode;
+	ptp.Nparam=1;
+	return ptp_transaction(params, &ptp, PTP_DP_NODATA, 0, NULL);
+}
+
+
 /* Non PTP protocol functions */
 /* devinfo testing functions */
 
