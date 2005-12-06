@@ -1423,7 +1423,7 @@ ptp_perror(PTPParams* params, uint16_t error) {
 	{PTP_RC_UnknownVendorCode, 	N_("PTP: Unknown Vendor Code")},
 	{PTP_RC_CaptureAlreadyTerminated,
 					N_("PTP: Capture Already Terminated")},
-	{PTP_RC_DeviceBusy, 		N_("PTP: Device Bus")},
+	{PTP_RC_DeviceBusy, 		N_("PTP: Device Busy")},
 	{PTP_RC_InvalidParentObject, 	N_("PTP: Invalid Parent Object")},
 	{PTP_RC_InvalidDevicePropFormat, N_("PTP: Invalid Device Prop Format")},
 	{PTP_RC_InvalidDevicePropValue, N_("PTP: Invalid Device Prop Value")},
@@ -1600,6 +1600,13 @@ ptp_get_operation_name(PTPParams* params, uint16_t oc)
 		{PTP_OC_CANON_GetFolderEntries,	N_("CANON GetFolderEntries")},
 		{0,NULL}
 	};
+	static struct {
+		uint16_t oc;
+		const char *txt;
+	} ptp_operations_NIKON[] = {
+		{PTP_OC_NIKON_SetControlMode,	N_("NIKON SetControlMode")},
+		{0,NULL}
+	};
 
 	switch (params->deviceinfo.VendorExtensionID) {
 		case PTP_VENDOR_EASTMAN_KODAK:
@@ -1612,6 +1619,11 @@ ptp_get_operation_name(PTPParams* params, uint16_t oc)
 			for (i=0; ptp_operations_CANON[i].txt!=NULL; i++)
 				if (ptp_operations_CANON[i].oc==oc)
 					return (ptp_operations_CANON[i].txt);
+			break;
+		case PTP_VENDOR_NIKON:
+			for (i=0; ptp_operations_NIKON[i].txt!=NULL; i++)
+				if (ptp_operations_NIKON[i].oc==oc)
+					return (ptp_operations_NIKON[i].txt);
 			break;
 		}
 	for (i=0; ptp_operations[i].txt!=NULL; i++)

@@ -406,6 +406,11 @@ open_camera (int busn, int devn, short force, PTP_USB *ptp_usb, PTPParams *param
 		close_usb(ptp_usb, *dev);
 		return -1;
 	}
+	if (ptp_getdeviceinfo(params,&params->deviceinfo)!=PTP_RC_OK) {
+		fprintf(stderr,"ERROR: Could not get device info!\n");
+		close_usb(ptp_usb, *dev);
+		return -1;
+	}
 	return 0;
 }
 
@@ -510,6 +515,11 @@ capture_image (int busn, int devn, short force)
 	/* capture timeout should be longer */
 	ptpcam_usb_timeout=USB_CAPTURE_TIMEOUT;
 
+	if (!ptp_operation_issupported(&params, PTP_OC_InitiateCapture))
+	{
+	    printf ("Your camera does not support InitiateCapture operation!\nSorry, blame the %s!\n", params.deviceinfo.Manufacturer);
+	    goto out;
+	}
 	CR(ptp_initiatecapture (&params, 0x0, 0), "Could not capture.\n");
 	
 	ret=ptp_usb_event_wait(&params,&event);
@@ -657,6 +667,7 @@ list_files (int busn, int devn, short force)
 	struct usb_device *dev;
 	int i;
 	PTPObjectInfo oi;
+	struct tm *tm;
 
 	printf("\nListing files...\n");
 	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
@@ -666,15 +677,19 @@ list_files (int busn, int devn, short force)
 	printf("Camera: %s\n",params.deviceinfo.Model);
 	CR(ptp_getobjecthandles (&params,0xffffffff, 0x000000, 0x000000,
 		&params.handles),"Could not get object handles\n");
-	printf("Handler:           size: \tname:\n");
+	printf("Handler:           Size: \tCaptureed:      \tname:\n");
 	for (i = 0; i < params.handles.n; i++) {
 		CR(ptp_getobjectinfo(&params,params.handles.Handler[i],
 			&oi),"Could not get object info\n");
 		if (oi.ObjectFormat == PTP_OFC_Association)
 			continue;
-		printf("0x%08lx: % 12u\t%s\n",
+		tm=gmtime(&oi.CaptureDate);
+		printf("0x%08lx: % 12u\t%4i-%02i-%02i %02i:%02i\t%s\n",
 			(long unsigned)params.handles.Handler[i],
-			(unsigned) oi.ObjectCompressedSize, oi.Filename);
+			(unsigned) oi.ObjectCompressedSize, 
+			tm->tm_year+1900, tm->tm_mon+1,tm->tm_mday,
+			tm->tm_hour, tm->tm_min,
+			oi.Filename);
 	}
 	printf("\n");
 	close_camera(&ptp_usb, &params, dev);
@@ -1140,11 +1155,13 @@ getset_property_internal (PTPParams* params, uint16_t property,const char* value
 		printf("\n");
 
 		propdesc=ptp_prop_getdescbystring(params, &dpd, value);
+/*
 		if (propdesc==NULL) {
 			fprintf(stderr, "ERROR: Unable to set property to unidentified value: '%s'\n",
 				value);
 			goto out;
 		}
+*/
 		printf("Changing property value to %s [%s] ",
 			value,propdesc);
 		r=(set_property(params, property, value, dpd.DataType));
