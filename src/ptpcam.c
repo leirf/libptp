@@ -186,22 +186,23 @@ ptp_write_func (unsigned char *bytes, unsigned int size, void *data)
 	}
 }
 
+/* XXX this one is suposed to return the number of bytes read!!! */
 static short
 ptp_check_int (unsigned char *bytes, unsigned int size, void *data)
 {
 	int result;
 	PTP_USB *ptp_usb=(PTP_USB *)data;
 
-	if (verbose) printf ("Awaiting event...\n");
-
 	result=USB_BULK_READ(ptp_usb->handle, ptp_usb->intep,(char *)bytes,size,ptpcam_usb_timeout);
 	if (result==0)
-		result = USB_BULK_READ(ptp_usb->handle, ptp_usb->intep,(char *) bytes, size, ptpcam_usb_timeout);
+	    result=USB_BULK_READ(ptp_usb->handle, ptp_usb->intep,(char *)bytes,size,ptpcam_usb_timeout);
+	if (verbose>2) printf ("USB_BULK_READ returned %i, size=%i\n", result, size);
+
 	if (result >= 0) {
-		return (PTP_RC_OK);
+		return result;
 	} else {
 		if (verbose) perror("ptp_check_int");
-		return PTP_ERROR_IO;
+		return result;
 	}
 }
 
@@ -299,6 +300,7 @@ close_usb(PTP_USB* ptp_usb, struct usb_device* dev)
 	clear_stall(ptp_usb, dev);
         usb_release_interface(ptp_usb->handle,
                 dev->config->interface->altsetting->bInterfaceNumber);
+	usb_reset(ptp_usb->handle);
         usb_close(ptp_usb->handle);
 }
 

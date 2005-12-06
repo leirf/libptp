@@ -334,36 +334,43 @@ ptp_transaction (PTPParams* params, PTPContainer* ptp,
 #define PTP_EVENT_CHECK			0x0000	/* waits for */
 #define PTP_EVENT_CHECK_FAST		0x0001	/* checks */
 
+#define CHECK_INT(usbevent, size)  {	\
+	    switch(wait) {		\
+		case PTP_EVENT_CHECK:	\
+		     result+=params->check_int_func((unsigned char*)&usbevent+result, \
+			    size-result, params->data);    \
+		    break;			    \
+		case PTP_EVENT_CHECK_FAST:	\
+		     result+=params->check_int_fast_func((unsigned char*)&usbevent+result,  \
+			    size-result, params->data);    \
+		    break;			    \
+		default:			    \
+		    return PTP_ERROR_BADPARAM;	    \
+	    }\
+	}
+					
+
 static inline uint16_t
 ptp_usb_event (PTPParams* params, PTPContainer* event, int wait)
 {
-	uint16_t ret;
+	int result=0, size=0;
 	static PTPUSBEventContainer usbevent;
 
 	PTP_CNT_INIT(usbevent);
 
 	if ((params==NULL) || (event==NULL)) 
 		return PTP_ERROR_BADPARAM;
-	
-	switch(wait) {
-		case PTP_EVENT_CHECK:
-			ret=params->check_int_func((unsigned char*)&usbevent,
-				sizeof(usbevent), params->data);
-			break;
-		case PTP_EVENT_CHECK_FAST:
-			ret=params->check_int_fast_func((unsigned char*)
-				&usbevent, sizeof(usbevent), params->data);
-			break;
-		default:
-			ret=PTP_ERROR_BADPARAM;
+
+
+	CHECK_INT(usbevent, PTP_USB_INT_PACKET_LEN);
+	size=dtoh32(usbevent.length);
+	while (result<size) {
+	    CHECK_INT(usbevent, size);
 	}
-	if (ret!=PTP_RC_OK) {
-		ret = PTP_ERROR_IO;
-		ptp_error (params,
-			"PTP: reading event an error 0x%04x occured", ret);
-		/* reading event error is nonfatal (for example timeout) */
-		return ret;
-	} 
+
+	if (result<0)
+		return PTP_ERROR_IO;
+
 	/* if we read anything over interrupt endpoint it must be an event */
 	/* build an appropriate PTPContainer */
 	event->Code=dtoh16(usbevent.code);
@@ -379,12 +386,14 @@ ptp_usb_event (PTPParams* params, PTPContainer* event, int wait)
 uint16_t
 ptp_usb_event_check (PTPParams* params, PTPContainer* event) {
 
+	ptp_debug(params,"PTP: Checking for Event");
 	return ptp_usb_event (params, event, PTP_EVENT_CHECK_FAST);
 }
 
 uint16_t
 ptp_usb_event_wait (PTPParams* params, PTPContainer* event) {
 
+	ptp_debug(params,"PTP: Waiting for Event");
 	return ptp_usb_event (params, event, PTP_EVENT_CHECK);
 }
 

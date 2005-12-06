@@ -74,6 +74,8 @@ struct _PTPUSBBulkContainer {
 };
 typedef struct _PTPUSBBulkContainer PTPUSBBulkContainer;
 
+#define PTP_USB_INT_PACKET_LEN	8
+
 /* PTP USB Asynchronous Event Interrupt Data Format */
 struct _PTPUSBEventContainer {
 	uint32_t length;
