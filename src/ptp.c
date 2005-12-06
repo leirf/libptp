@@ -363,13 +363,15 @@ ptp_usb_event (PTPParams* params, PTPContainer* event, int wait)
 
 
 	CHECK_INT(usbevent, PTP_USB_INT_PACKET_LEN);
+	if (result<0)
+	    return PTP_ERROR_IO;
 	size=dtoh32(usbevent.length);
 	while (result<size) {
 	    CHECK_INT(usbevent, size);
+	    if (result<0)
+		return PTP_ERROR_IO;
 	}
 
-	if (result<0)
-		return PTP_ERROR_IO;
 
 	/* if we read anything over interrupt endpoint it must be an event */
 	/* build an appropriate PTPContainer */

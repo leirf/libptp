@@ -196,7 +196,7 @@ ptp_check_int (unsigned char *bytes, unsigned int size, void *data)
 	result=USB_BULK_READ(ptp_usb->handle, ptp_usb->intep,(char *)bytes,size,ptpcam_usb_timeout);
 	if (result==0)
 	    result=USB_BULK_READ(ptp_usb->handle, ptp_usb->intep,(char *)bytes,size,ptpcam_usb_timeout);
-	if (verbose>2) printf ("USB_BULK_READ returned %i, size=%i\n", result, size);
+	if (verbose>2) fprintf (stderr, "USB_BULK_READ returned %i, size=%i\n", result, size);
 
 	if (result >= 0) {
 		return result;
@@ -525,8 +525,8 @@ capture_image (int busn, int devn, short force)
 	CR(ptp_initiatecapture (&params, 0x0, 0), "Could not capture.\n");
 	
 	ret=ptp_usb_event_wait(&params,&event);
-	if (verbose) printf ("Event received %08x, ret=%x\n", event.Code, ret);
 	if (ret!=PTP_RC_OK) goto err;
+	if (verbose) printf ("Event received %08x, ret=%x\n", event.Code, ret);
 	if (event.Code==PTP_EC_CaptureComplete) {
 		printf ("Camera reported 'capture completed' but the object information is missing.\n");
 		goto out;
