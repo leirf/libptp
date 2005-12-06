@@ -842,11 +842,12 @@ get_all_files (int busn, int devn, short force, int overwrite)
 
 		if (oi.ObjectFormat == PTP_OFC_Association)
 				goto out;
-		filename=(oi.Filename);
+		filename=oi.Filename;
 		file=open(filename, (overwrite==OVERWRITE_EXISTING?0:O_EXCL)|O_RDWR|O_CREAT|O_TRUNC,S_IRWXU|S_IRGRP);
 		if (file==-1) {
 			if (errno==EEXIST) {
 				printf("Skipping file: \"%s\", file exists!\n",filename);
+				fflush(NULL);
 				continue;
 			}
 			perror("open");
