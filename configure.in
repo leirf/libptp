@@ -77,10 +77,10 @@ AM_CONDITIONAL(PTPCAM, test "x$build_ptpcam" = "xyes")
 # Check for libusb
 if test "x$build_ptpcam" = "xyes"
 then
-AC_ARG_WITH([libusbdir],[
+AC_ARG_WITH([libusbdir],
 	AC_HELP_STRING([--with-libusbdir=<path>],
 			[libusb installation prefix path])
-],[
+,[
 	PTPCAM_CFLAGS="-I$withval/include"
 	PTPCAM_LDFLAGS="-L$withval/lib -lusb"
 	AC_SUBST(PTPCAM_CFLAGS)
