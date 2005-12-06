@@ -486,8 +486,6 @@ show_info (int busn, int devn, short force)
 	printf("==================\n");
 	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
 		return;
-	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
-		"Could not get device info\n");
 	printf("Model: %s\n",params.deviceinfo.Model);
 	printf("  manufacturer: %s\n",params.deviceinfo.Manufacturer);
 	printf("  serial number: '%s'\n",params.deviceinfo.SerialNumber);
@@ -571,8 +569,6 @@ loop_capture (int busn, int devn, short force, int n,  int overwrite)
 	/* capture timeout should be longer */
 	ptpcam_usb_timeout=USB_CAPTURE_TIMEOUT;
 
-	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
-		"Could not get device info\n");
 	printf("Camera: %s\n",params.deviceinfo.Model);
 
 
@@ -674,8 +670,6 @@ list_files (int busn, int devn, short force)
 	printf("\nListing files...\n");
 	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
 		return;
-	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
-		"Could not get device info\n");
 	printf("Camera: %s\n",params.deviceinfo.Model);
 	CR(ptp_getobjecthandles (&params,0xffffffff, 0x000000, 0x000000,
 		&params.handles),"Could not get object handles\n");
@@ -727,8 +721,6 @@ delete_all_files (int busn, int devn, short force)
 
 	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
 		return;
-	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
-		"Could not get device info\n");
 	printf("Camera: %s\n",params.deviceinfo.Model);
 	CR(ptp_getobjecthandles (&params,0xffffffff, 0x000000, 0x000000,
 		&params.handles),"Could not get object handles\n");
@@ -768,8 +760,6 @@ int overwrite)
 
 	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
 		return;
-	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
-		"Could not get device info\n");
 	printf("Camera: %s\n",params.deviceinfo.Model);
 
 	if (verbose)
@@ -833,8 +823,6 @@ get_all_files (int busn, int devn, short force, int overwrite)
 
 	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
 		return;
-	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
-		"Could not get device info\n");
 	printf("Camera: %s\n",params.deviceinfo.Model);
 
 	CR(ptp_getobjecthandles (&params,0xffffffff, 0x000000, 0x000000,
@@ -912,8 +900,6 @@ list_operations (int busn, int devn, short force)
 
 	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
 		return;
-	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
-		"Could not get device info\n");
 	printf("Camera: %s\n",params.deviceinfo.Model);
 	for (i=0; i<params.deviceinfo.OperationsSupported_len; i++)
 	{
@@ -949,8 +935,6 @@ list_properties (int busn, int devn, short force)
 	CR(ptp_nikon_setcontrolmode(&params, 0x01),
 		"Unable to set Nikon PC controll mode\n");
 #endif
-	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
-		"Could not get device info\n");
 	printf("Camera: %s\n",params.deviceinfo.Model);
 	for (i=0; i<params.deviceinfo.DevicePropertiesSupported_len;i++){
 		propname=ptp_prop_getname(&params,
@@ -1198,9 +1182,6 @@ getset_propertybyname (int busn,int devn,char* property,char* value,short force)
 	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
 		return;
 
-	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
-		"Could not get device info\nTry to reset the camera.\n");
-
 	printf("Camera: %s",params.deviceinfo.Model);
 	if ((devn!=0)||(busn!=0)) 
 		printf(" (bus %i, dev %i)\n",busn,devn);
@@ -1264,8 +1245,6 @@ getset_property (int busn,int devn,uint16_t property,char* value,short force)
 	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
 		return;
 
-	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
-		"Could not get device info\nTry to reset the camera.\n");
 	printf("Camera: %s",params.deviceinfo.Model);
 	if ((devn!=0)||(busn!=0)) 
 		printf(" (bus %i, dev %i)\n",busn,devn);
@@ -1274,8 +1253,7 @@ getset_property (int busn,int devn,uint16_t property,char* value,short force)
 	if (!ptp_prop_issupported(&params, property))
 	{
 		fprintf(stderr,"The device does not support this property!\n");
-		CR(ptp_closesession(&params), "Could not close session!\n"
-			"Try to reset the camera.\n");
+		close_camera(&ptp_usb, &params, dev);
 		return;
 	}
 
@@ -1409,8 +1387,6 @@ show_all_properties (int busn,int devn,short force, int unknown)
 	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
 		return;
 
-	CR(ptp_getdeviceinfo (&params, &params.deviceinfo),
-		"Could not get device info\nTry to reset the camera.\n");
 	printf("Camera: %s",params.deviceinfo.Model);
 	if ((devn!=0)||(busn!=0)) 
 		printf(" (bus %i, dev %i)\n",busn,devn);
