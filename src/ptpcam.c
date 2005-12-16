@@ -330,6 +330,7 @@ find_device (int busn, int devn, short force)
 	bus=init_usb();
 	for (; bus; bus = bus->next)
 	for (dev = bus->devices; dev; dev = dev->next)
+	if (dev->config)
 	if ((dev->config->interface->altsetting->bInterfaceClass==
 		USB_CLASS_PTP)||force)
 	if (dev->descriptor.bDeviceClass!=USB_CLASS_HUB)
@@ -437,6 +438,7 @@ list_devices(short force)
   	for (; bus; bus = bus->next)
     	for (dev = bus->devices; dev; dev = dev->next) {
 		/* if it's a PTP device try to talk to it */
+		if (dev->config)
 		if ((dev->config->interface->altsetting->bInterfaceClass==
 			USB_CLASS_PTP)||force)
 		if (dev->descriptor.bDeviceClass!=USB_CLASS_HUB)
