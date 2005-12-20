@@ -675,14 +675,14 @@ list_files (int busn, int devn, short force)
 	printf("Camera: %s\n",params.deviceinfo.Model);
 	CR(ptp_getobjecthandles (&params,0xffffffff, 0x000000, 0x000000,
 		&params.handles),"Could not get object handles\n");
-	printf("Handler:           Size: \tCaptureed:      \tname:\n");
+	printf("Handler:           Size: \tCaptured:      \tname:\n");
 	for (i = 0; i < params.handles.n; i++) {
 		CR(ptp_getobjectinfo(&params,params.handles.Handler[i],
 			&oi),"Could not get object info\n");
 		if (oi.ObjectFormat == PTP_OFC_Association)
 			continue;
 		tm=gmtime(&oi.CaptureDate);
-		printf("0x%08lx: % 12u\t%4i-%02i-%02i %02i:%02i\t%s\n",
+		printf("0x%08lx: %12u\t%4i-%02i-%02i %02i:%02i\t%s\n",
 			(long unsigned)params.handles.Handler[i],
 			(unsigned) oi.ObjectCompressedSize, 
 			tm->tm_year+1900, tm->tm_mon+1,tm->tm_mday,
