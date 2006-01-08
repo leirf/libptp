@@ -1,3 +1,11 @@
+2005-12-16 Mariusz Woloszyn
+	* ptpcam.c: Ivan Middleton little patch that make libptp2 work under
+	OXS.
+
+2005-12-16 Mariusz Woloszyn
+	Introduced new events handling code... It's still under work yet. The
+	purpose for the changes was to make libptp2 compatible with Nikon D2X.
+
 2005-11-01 Mariusz Woloszyn
 	* src/*.[ch]: Introduced --set; introduced code allowing reading and
 	setting properties by names and sybolic values: like
