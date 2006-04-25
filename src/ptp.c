@@ -1357,6 +1357,19 @@ ptp_nikon_setcontrolmode (PTPParams* params, uint32_t mode)
 	return ptp_transaction(params, &ptp, PTP_DP_NODATA, 0, NULL);
 }
 
+uint16_t
+ptp_nikon_capture (PTPParams* params, uint32_t unknown)
+{
+	PTPContainer ptp;
+	
+	PTP_CNT_INIT(ptp);
+	ptp.Code=PTP_OC_NIKON_DirectCapture;
+	ptp.Param1=unknown; /* as of yet unknown parameter */
+	ptp.Nparam=1;
+	return ptp_transaction(params, &ptp, PTP_DP_NODATA, 0, NULL);
+}
+
+
 
 /* Non PTP protocol functions */
 /* devinfo testing functions */

@@ -161,6 +161,7 @@ typedef struct _PTPUSBEventContainer PTPUSBEventContainer;
 #define PTP_OC_CANON_GetFolderEntries	0x9021
 /* Nikon extensiion Operation Codes */
 #define PTP_OC_NIKON_SetControlMode	0x90C2
+#define PTP_OC_NIKON_DirectCapure	0x90C0
 
 /* Proprietary vendor extension operations mask */
 #define PTP_OC_EXTENSION_MASK		0xF000
