@@ -117,7 +117,7 @@ help()
 					"(or set its value,\n"
 	"                               if used in conjunction with --val)\n"
 	"  --set-property=NUMBER        Set property value (--val required)\n"
-	"  --set=NAME                   Set property provided by name\n"
+	"  --set=PROP-NAME              Set property by name (abbreviations allowed)\n"
 	"  --val=VALUE                  Property value (numeric for --set-property and\n"
 	"                               string or numeric for --set)\n"
 	"  --show-all-properties        Show all properties values\n"

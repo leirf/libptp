@@ -1,5 +1,5 @@
-libptp2 (c)2001-2005 Mariusz Woloszyn <emsi@ipartners.pl>
-ptpcam  (c)2001-2005 Mariusz Woloszyn <emsi@ipartners.pl>
+libptp2 (c)2001-2006 Mariusz Woloszyn <emsi@ipartners.pl>
+ptpcam  (c)2001-2006 Mariusz Woloszyn <emsi@ipartners.pl>
 
 =====================
 *About this software*
@@ -34,6 +34,7 @@ BE AWARE THAT libusb-0.1.10 contained bugs that might affect your camera!
 Use newer version or libusb-0.1.8 instead.
 If you want to build this library (for test purposes) on a box without
 libusb pass --disable-ptpcam option to configure script.
+A PTP camera seems to be required also to take full advantage of this package.
 
 
 ==================
@@ -44,8 +45,9 @@ libptp2 is a library used to communicate with PTP devices like still
 imaging cameras.
 At the current stage you may use ptpcam tool boundled with libptp2 to perform
 some basic operations like downloading photos or setting camera properties.
-For other operations you might consider using libgphoto2 (which contains
-slightly modified libptp2 code) with gphoto2 (visit http://www.gphoto.org).
+For other operations and GUI you might consider using libgphoto2
+(which contains forked version of libptp2 code), gphoto2 and gtkam; 
+see http://www.gphoto.org.
 
 
 ===================
