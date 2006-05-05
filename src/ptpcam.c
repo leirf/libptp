@@ -684,6 +684,7 @@ nikon_direct_capture (int busn, int devn, short force, int overwrite)
 	int ExposureTime=0;	/* exposure time in miliseconds */
 	int BurstNumber=1;
 	PTPDevicePropDesc dpd;
+	int i;
     
 	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
 		return;
@@ -722,10 +723,6 @@ nikon_direct_capture (int busn, int devn, short force, int overwrite)
 	    usleep (ExposureTime*1000);
 	}
 
-	
-    {
-	int i;
-
 	while (BurstNumber>0) {
 
 #if 0	    /* Is this really needed??? */
@@ -739,7 +736,6 @@ nikon_direct_capture (int busn, int devn, short force, int overwrite)
 		{
 		    BurstNumber--;
 		    get_save_object(&params, 0xffff0001, NULL, overwrite);
-		    ptp_deleteobject(&params, 0xffff0001,0);
 		}
 		if (events[i].code==PTP_EC_NIKON_CaptureOverflow) {
 		    printf("Ram cache overflow, capture terminated\n");
@@ -747,10 +743,7 @@ nikon_direct_capture (int busn, int devn, short force, int overwrite)
 		}
 	    }
 	    free (events);
-
 	}
-
-    }
 
 out:	
 	ptpcam_usb_timeout=USB_TIMEOUT;
@@ -1227,7 +1220,7 @@ getset_property_internal (PTPParams* params, uint16_t property,const char* value
 		else 
 			printf ("succeeded.\n");
 	}
-	out:
+/*	out: */
 
 	ptp_free_devicepropdesc(&dpd);
 }
