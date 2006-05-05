@@ -143,13 +143,13 @@ void list_operations (int busn, int devn, short force);
 void list_devices(short force);
 void list_properties (int dev, int bus, short force);
 void loop_capture (int busn, int devn, short force, int n,  int overwrite);
-int save_file (PTPParams *params, uint32_t handle, char* filename, int overwrite);
+void get_save_object (PTPParams *params, uint32_t handle, char* filename, int overwrite);
 
 
 struct usb_bus* init_usb(void);
 void close_usb(PTP_USB* ptp_usb, struct usb_device* dev);
 void init_ptp_usb (PTPParams*, PTP_USB*, struct usb_device*);
-void clear_stall(PTP_USB* ptp_usb, struct usb_device* dev);
+void clear_stall(PTP_USB* ptp_usb);
 
 int usb_get_endpoint_status(PTP_USB* ptp_usb, int ep, uint16_t* status);
 int usb_clear_stall_feature(PTP_USB* ptp_usb, int ep);

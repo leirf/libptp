@@ -244,6 +244,10 @@ typedef struct _PTPUSBEventContainer PTPUSBEventContainer;
 #define PTP_EC_CANON_RequestObjectTransfer	0xC009
 #define PTP_EC_CANON_CameraModeChanged	0xC00C
 
+/* Nikon extension Event Codes */
+#define PTP_EC_NIKON_ObjectReady	0xC101
+#define PTP_EC_NIKON_CaptureOverflow	0xC102
+
 /* PTP device info structure (returned by GetDevInfo) */
 
 struct _PTPDeviceInfo {
@@ -839,6 +843,7 @@ uint16_t ptp_nikon_keepalive (PTPParams* params);
 
 /* Non PTP protocol functions */
 int ptp_operation_issupported	(PTPParams* params, uint16_t operation);
+int ptp_property_issupported	(PTPParams* params, uint16_t property);
 
 void ptp_free_devicepropdesc	(PTPDevicePropDesc* dpd);
 void ptp_perror			(PTPParams* params, uint16_t error);
@@ -846,8 +851,6 @@ const char*
 ptp_get_datatype_name		(PTPParams* params, uint16_t dt);
 const char*
 ptp_get_operation_name		(PTPParams* params, uint16_t oc);
-
-int ptp_prop_issupported	(PTPParams* params, uint16_t property);
 const char*
 ptp_prop_getname		(PTPParams* params, uint16_t dpc);
 

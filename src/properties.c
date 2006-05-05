@@ -1,3 +1,4 @@
+
 /* properties.c
  *
  * Copyright (C) 2005 Mariusz Woloszyn <emsi@ipartners.pl>
@@ -48,9 +49,8 @@
 			return s;\
 }
 
-
 int
-ptp_prop_issupported(PTPParams* params, uint16_t property)
+ptp_property_issupported(PTPParams* params, uint16_t property)
 {
 	int i=0;
 
