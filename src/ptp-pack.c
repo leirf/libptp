@@ -747,4 +747,27 @@ ptp_unpack_Canon_FE (PTPParams *params, char* data, PTPCANONFolderEntry *fe)
 	fe->Filename[i]=(char)dtoh8a(&data[PTP_cfe_Filename+i]);
 }
 
+#define PTP_NIKON_ec_Num		0
+#define PTP_NIKON_ec_Code		2
+#define PTP_NIKON_ec_Param1		4
+
+static inline void
+ptp_nikon_unpack_EC (PTPParams *params, char *evdata, PTPUSBEventContainer** event, uint16_t* evnum)
+{
+    int i=0;
+    PTPUSBEventContainer *events;
+
+    *evnum=dtoh16a(&evdata[PTP_NIKON_ec_Num]);
+    events=calloc(*evnum, sizeof(PTPUSBEventContainer));
+
+    *event=events;
+    while (i<*evnum) {
+	events->code = dtoh16a(&evdata[PTP_NIKON_ec_Code+
+		((sizeof(uint16_t)+sizeof(uint32_t))*i)]);
+	events->param1 = dtoh32a(&evdata[PTP_NIKON_ec_Param1+
+		((sizeof(uint16_t)+sizeof(uint32_t))*i)]);
+	events++;
+	i++;
+    }
+}
 

@@ -93,6 +93,8 @@ int myusb_bulk_write(usb_dev_handle *dev, int ep, char *bytes, int length,
 #define ACT_SHOW_UNKNOWN_PROPERTIES	0xF
 #define ACT_SET_PROPBYNAME	0x10
 
+#define ACT_NIKON_DC		0x101
+
 /* printing value type */
 #define PTPCAM_PRINT_HEX	00
 #define PTPCAM_PRINT_DEC	01
@@ -134,12 +136,15 @@ void list_files (int busn, int devn, short force);
 void get_file (int busn, int devn, short force, uint32_t handle, char* filename, int overwrite);
 void get_all_files (int busn, int devn, short force, int overwrite);
 void capture_image (int busn, int devn, short force);
+void nikon_direct_capture (int busn, int devn, short force, int overwrite);
 void delete_object (int busn, int devn, short force, uint32_t handle);
 void delete_all_files (int busn, int devn, short force);
 void list_operations (int busn, int devn, short force);
 void list_devices(short force);
 void list_properties (int dev, int bus, short force);
 void loop_capture (int busn, int devn, short force, int n,  int overwrite);
+int save_file (PTPParams *params, uint32_t handle, char* filename, int overwrite);
+
 
 struct usb_bus* init_usb(void);
 void close_usb(PTP_USB* ptp_usb, struct usb_device* dev);

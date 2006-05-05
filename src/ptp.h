@@ -160,8 +160,10 @@ typedef struct _PTPUSBEventContainer PTPUSBEventContainer;
 #define PTP_OC_CANON_GetChanges		0x9020
 #define PTP_OC_CANON_GetFolderEntries	0x9021
 /* Nikon extensiion Operation Codes */
+#define PTP_OC_NIKON_DirectCapture	0x90C0
 #define PTP_OC_NIKON_SetControlMode	0x90C2
-#define PTP_OC_NIKON_DirectCapure	0x90C0
+#define PTP_OC_NIKON_CheckEvent		0x90C7
+#define PTP_OC_NIKON_KeepAlive		0x90C8
 
 /* Proprietary vendor extension operations mask */
 #define PTP_OC_EXTENSION_MASK		0xF000
@@ -829,7 +831,10 @@ uint16_t ptp_canon_getfolderentries (PTPParams* params, uint32_t store,
 
 /* Nikon extensions */
 uint16_t ptp_nikon_setcontrolmode (PTPParams* params, uint32_t mode);
-
+uint16_t ptp_nikon_directcapture (PTPParams* params, uint32_t unknown);
+uint16_t ptp_nikon_checkevent (PTPParams* params,
+				PTPUSBEventContainer** event, uint16_t* evnum);
+uint16_t ptp_nikon_keepalive (PTPParams* params);
 
 
 /* Non PTP protocol functions */

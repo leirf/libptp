@@ -190,7 +190,7 @@ ptp_usb_getdata (PTPParams* params, PTPContainer* ptp,
 		/* evaluate data length */
 		len=dtoh32(usbdata.length)-PTP_USB_BULK_HDR_LEN;
 		/* allocate memory for data if not allocated already */
-		if (*data==NULL) *data=calloc(len,1);
+		if (*data==NULL) *data=calloc(1,len);
 		/* copy first part of data to 'data' */
 		memcpy(*data,usbdata.payload.data,
 			PTP_USB_BULK_PAYLOAD_LEN<len?
@@ -1358,7 +1358,7 @@ ptp_nikon_setcontrolmode (PTPParams* params, uint32_t mode)
 }
 
 uint16_t
-ptp_nikon_capture (PTPParams* params, uint32_t unknown)
+ptp_nikon_directcapture (PTPParams* params, uint32_t unknown)
 {
 	PTPContainer ptp;
 	
@@ -1368,6 +1368,36 @@ ptp_nikon_capture (PTPParams* params, uint32_t unknown)
 	ptp.Nparam=1;
 	return ptp_transaction(params, &ptp, PTP_DP_NODATA, 0, NULL);
 }
+
+uint16_t
+ptp_nikon_checkevent (PTPParams* params, PTPUSBEventContainer** event, uint16_t* evnum)
+{
+	uint16_t ret;
+	PTPContainer ptp;
+	char *evdata = NULL;
+	
+	PTP_CNT_INIT(ptp);
+	ptp.Code=PTP_OC_NIKON_CheckEvent;
+	ptp.Nparam=0;
+
+	ret = ptp_transaction(params, &ptp, PTP_DP_GETDATA, 0, &evdata);
+	if (ret == PTP_RC_OK) ptp_nikon_unpack_EC(params, evdata, event, evnum);
+	free (evdata);
+	return ret;
+}
+
+uint16_t
+ptp_nikon_keepalive (PTPParams* params)
+{
+	
+	PTPContainer ptp;
+
+	PTP_CNT_INIT(ptp);
+	ptp.Code=PTP_OC_NIKON_KeepAlive;
+	ptp.Nparam=0;
+	return ptp_transaction(params, &ptp, PTP_DP_NODATA, 0, NULL);
+}
+
 
 
 
@@ -1628,7 +1658,10 @@ ptp_get_operation_name(PTPParams* params, uint16_t oc)
 		uint16_t oc;
 		const char *txt;
 	} ptp_operations_NIKON[] = {
+		{PTP_OC_NIKON_DirectCapture,	N_("NIKON DirectCapture")},
 		{PTP_OC_NIKON_SetControlMode,	N_("NIKON SetControlMode")},
+		{PTP_OC_NIKON_CheckEvent,	N_("NIKON Check Event")},
+		{PTP_OC_NIKON_KeepAlive,	N_("NIKON Keep Alive (?)")},
 		{0,NULL}
 	};
 

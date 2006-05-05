@@ -84,7 +84,7 @@
 /* OUR APPLICATION USB URB (2MB) ;) */
 #define PTPCAM_USB_URB		2097152
 
-#define USB_TIMEOUT		4000
+#define USB_TIMEOUT		5000
 #define USB_CAPTURE_TIMEOUT	20000
 
 /* one global variable (yes, I know it sucks) */
@@ -130,6 +130,7 @@ help()
 	"  -d, --delete-object=HANDLE   Delete object (file) by given handle\n"
 	"  -D, --delete-all-files       Delete all files form camera\n"
 	"  -c, --capture                Initiate capture\n"
+	"  --nikon-dc, --ndc            Initiate Nikon Direct Capture\n"
 	"  --loop-capture=N             Perform N times capture/get/delete\n"
 	"  -f, --force                  Talk to non PTP devices\n"
 	"  -v, --verbose                Be verbose (print more debug)\n"
@@ -660,6 +661,96 @@ err:
 }
 
 void
+nikon_direct_capture (int busn, int devn, short force, int overwrite)
+{
+	PTPParams params;
+	PTP_USB ptp_usb;
+	struct usb_device *dev;
+	uint16_t result;
+	uint16_t nevent=0;
+	PTPUSBEventContainer* events=NULL;
+	int ExposureTime=0;  /* exposure time in miliseconds */
+    
+	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
+		return;
+
+	/* try to adjust capture timeout! */
+    {
+	PTPDevicePropDesc dpd;
+
+	memset(&dpd,0,sizeof(dpd));
+	result=ptp_getdevicepropdesc(&params,PTP_DPC_ExposureTime,&dpd);
+	/* set to Exposure Time + 5s, hope it's enough */
+	if (result==PTP_RC_OK) ExposureTime=(*(int32_t*)(dpd.CurrentValue))/10;
+    }
+
+
+	//result=ptp_nikon_check_event (&params, &events, &nevent);
+	//free (events);
+
+	printf("Camera: %s\n",params.deviceinfo.Model);
+	printf("\nInitiating direct captue...\n");
+	
+	if (params.deviceinfo.VendorExtensionID!=PTP_VENDOR_NIKON)
+	{
+	    printf ("Your camera is not Nikon!\nDo not buy from %s!\n",params.deviceinfo.Manufacturer);
+	    goto out;
+	}
+
+	if (!ptp_operation_issupported(&params,PTP_OC_NIKON_DirectCapture)) {
+	    printf ("Sorry, your camera dows not support Nikon DirectCapture!\nDo not buy from %s!\n",params.deviceinfo.Manufacturer);
+	    goto out;
+	}
+
+	CR(ptp_nikon_directcapture (&params, 0xffffffff), "Could not capture.\n");
+
+	if (ExposureTime<=10) {
+	} else 
+	{
+	    printf ("sleep: %i\n", ExposureTime/1000);
+	    sleep(ExposureTime/1000);
+	}
+
+	/* XXX: what if in burst mode??? */
+
+	
+    {
+	int i;
+	int c101=1;
+
+	while (c101) {
+
+	    ptp_nikon_keepalive(&params);
+	    result=ptp_nikon_checkevent (&params, &events, &nevent);
+	    if (result != PTP_RC_OK) goto out;
+	    for(i=0;i<nevent;i++) {
+		if (events[i].code==0xc101) c101=0;
+	     	printf("Event [%i] = 0x%04x,\t param: %08x\n",i, events[i].code ,events[i].param1);
+	    }
+	    free (events);
+
+	}
+
+	save_file(&params, 0xffff0001, NULL, overwrite);
+#if 0
+	result=ptp_getobjectinfo (&params, 0xffff0001, &oi);
+	if (result != PTP_RC_OK) {
+	    fprintf (stderr,"getobjectinfo(%x) failed: %d\n", 0xffff0001, result);
+	    goto out;
+	}
+	printf ("oi.Filename = %s\n",oi.Filename);
+#endif
+    }
+
+out:	
+	ptpcam_usb_timeout=USB_TIMEOUT;
+	close_camera(&ptp_usb, &params, dev);
+}
+
+
+
+
+void
 list_files (int busn, int devn, short force)
 {
 	PTPParams params;
@@ -745,7 +836,61 @@ delete_all_files (int busn, int devn, short force)
 	close_camera(&ptp_usb, &params, dev);
 }
 
+int
+save_file (PTPParams *params, uint32_t handle, char* filename, int overwrite)
+{
 
+	int file;
+	PTPObjectInfo oi;
+	char *image;
+	int ret;
+	struct utimbuf timebuf;
+
+	if (verbose)
+		printf ("Handle: 0x%08lx\n",(long unsigned) handle);
+	if (ptp_getobjectinfo(params,handle, &oi)!=PTP_RC_OK) {
+	    fprintf(stderr, "Could not get object info\n");
+	    goto out;
+	}
+	if (oi.ObjectFormat == PTP_OFC_Association)
+			goto out;
+	if (filename==NULL) filename=(oi.Filename);
+	file=open(filename, (overwrite==OVERWRITE_EXISTING?0:O_EXCL)|O_RDWR|O_CREAT|O_TRUNC,S_IRWXU|S_IRGRP);
+	if (file==-1) {
+		if (errno==EEXIST) {
+			printf("Skipping file: \"%s\", file exists!\n",filename);
+			goto out;
+		}
+		perror("open");
+		goto out;
+	}
+	lseek(file,oi.ObjectCompressedSize-1,SEEK_SET);
+	write(file,"",1);
+	if (file<0) goto out;
+	image=mmap(0,oi.ObjectCompressedSize,PROT_READ|PROT_WRITE,MAP_SHARED,
+		file,0);
+	if (image==MAP_FAILED) {
+		close(file);
+		goto out;
+	}
+	printf ("Saving file: \"%s\" ",filename);
+	fflush(NULL);
+	ret=ptp_getobject(params,handle,&image);
+	munmap(image,oi.ObjectCompressedSize);
+	close(file);
+	timebuf.actime=oi.ModificationDate;
+	timebuf.modtime=oi.CaptureDate;
+	utime(filename,&timebuf);
+	if (ret!=PTP_RC_OK) {
+		printf ("error!\n");
+		ptp_perror(params,ret);
+	} else {
+		printf("is done.\n");
+	}
+out:
+	return;
+
+}
 
 void
 get_file (int busn, int devn, short force, uint32_t handle, char* filename,
@@ -1577,6 +1722,8 @@ main(int argc, char ** argv)
 		{"get-file",1,0,'g'},
 		{"get-all-files",0,0,'G'},
 		{"capture",0,0,'c'},
+		{"nikon-dc",0,0,0},
+		{"ndc",0,0,0},
 		{"loop-capture",1,0,0},
 		{"delete-object",1,0,'d'},
 		{"delete-all-files",1,0,'D'},
@@ -1619,6 +1766,11 @@ main(int argc, char ** argv)
 			{
 				propstr=strdup(optarg);
 				action=ACT_SET_PROPBYNAME;
+			}
+			if (!strcmp("nikon-dc", loptions[option_index].name) ||
+			    !strcmp("ndc", loptions[option_index].name))
+			{
+			    action=ACT_NIKON_DC;
 			}
 			break;
 		case 'f':
@@ -1733,6 +1885,9 @@ main(int argc, char ** argv)
 			break;
 		case ACT_SET_PROPBYNAME:
 			getset_propertybyname(busn,devn,propstr,value,force);
+			break;
+		case ACT_NIKON_DC:
+			nikon_direct_capture(busn,devn,force,overwrite);
 	}
 
 	return 0;
