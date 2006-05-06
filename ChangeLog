@@ -1,3 +1,10 @@
+2006-06-06 Mariusz Woloszyn
+	* properties.c: added couple fo Nikon D200 properties meanings
+	* ptpcam.c, ptpcam.h: added simple SIGINT handling
+2006-05-05 Mariusz Woloszyn
+	* ptpcam.c, ptp.c, ptp.h, properties.c, ptpcam.h: Added Nikon Direct
+	Capture support
+
 2005-12-16 Mariusz Woloszyn
 	* ptpcam.c: Ivan Middleton little patch that make libptp2 work under
 	OXS.
