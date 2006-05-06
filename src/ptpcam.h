@@ -128,6 +128,8 @@ extern short verbose;
  * functions
  */
 
+void ptpcam_siginthandler(int signum);
+
 void usage(void);
 void help(void);
 void list_devices(short force);

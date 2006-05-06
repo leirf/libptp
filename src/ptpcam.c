@@ -25,6 +25,7 @@
 #include <string.h>
 #include <getopt.h>
 #include <unistd.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <utime.h>
 #include <sys/stat.h>
@@ -92,6 +93,9 @@ short verbose=0;
 /* the other one, it sucks definitely ;) */
 int ptpcam_usb_timeout = USB_TIMEOUT;
 
+/* we need it for a proper signal handling :/ */
+PTPParams* globalparams;
+
 
 void
 usage()
@@ -136,6 +140,22 @@ help()
 	"  -v, --verbose                Be verbose (print more debug)\n"
 	"  -h, --help                   Print this help message\n"
 	"\n");
+}
+
+void
+ptpcam_siginthandler(int signum)
+{
+    PTP_USB* ptp_usb=(PTP_USB *)globalparams->data;
+    struct usb_device *dev=usb_device(ptp_usb->handle);
+
+    if (signum==SIGINT)
+    {
+	/* hey it's not that easy though... but at least we can try! */
+	printf("Got SIGINT, trying to clean up and close...\n");
+	usleep(500);
+	close_camera (ptp_usb, globalparams, dev);
+	exit (-1);
+    }
 }
 
 static short
@@ -261,6 +281,7 @@ init_ptp_usb (PTPParams* params, PTP_USB* ptp_usb, struct usb_device* dev)
 		usb_claim_interface(device_handle,
 			dev->config->interface->altsetting->bInterfaceNumber);
 	}
+	globalparams=params;
 }
 
 void
@@ -714,7 +735,15 @@ nikon_direct_capture (int busn, int devn, short force, int overwrite)
 	if (result==PTP_RC_OK) BurstNumber=*(uint16_t*)(dpd.CurrentValue);
 
 	/* perform direct capture */
-	CR(ptp_nikon_directcapture (&params, 0xffffffff), "Could not capture.\n");
+	result=ptp_nikon_directcapture (&params, 0xffffffff);
+	if (result!=PTP_RC_OK) {
+	    ptp_perror(&params,result);
+	    fprintf(stderr,"ERROR: Could not capture.\n");
+	    if (result!=PTP_RC_StoreFull) {
+		close_camera(&ptp_usb, &params, dev);
+		return;
+	    }
+	}
 	if (BurstNumber>1) printf("Capturing %i frames in burst.\n",BurstNumber);
 
 	/* sleep in case of exposure longer than 1/100 */
@@ -1647,6 +1676,9 @@ main(int argc, char ** argv)
 		{"verbose",2,0,'v'},
 		{0,0,0,0}
 	};
+
+	/* register signal handlers */
+	signal(SIGINT, ptpcam_siginthandler);
 	
 	while(1) {
 		opt = getopt_long (argc, argv, "LhlcipfroGg:Dd:s:v::", loptions, &option_index);
