@@ -134,7 +134,8 @@ help()
 	"  -d, --delete-object=HANDLE   Delete object (file) by given handle\n"
 	"  -D, --delete-all-files       Delete all files form camera\n"
 	"  -c, --capture                Initiate capture\n"
-	"  --nikon-dc, --ndc            Initiate Nikon Direct Capture\n"
+	"  --nikon-ic, --nic            Initiate Nikon Direct Capture (no download!)\n"
+	"  --nikon-dc, --ndc            Initiate Nikon Direct Capture and download\n"
 	"  --loop-capture=N             Perform N times capture/get/delete\n"
 	"  -f, --force                  Talk to non PTP devices\n"
 	"  -v, --verbose                Be verbose (print more debug)\n"
@@ -152,7 +153,7 @@ ptpcam_siginthandler(int signum)
     {
 	/* hey it's not that easy though... but at least we can try! */
 	printf("Got SIGINT, trying to clean up and close...\n");
-	usleep(500);
+	usleep(5000);
 	close_camera (ptp_usb, globalparams, dev);
 	exit (-1);
     }
@@ -319,7 +320,7 @@ clear_stall(PTP_USB* ptp_usb)
 void
 close_usb(PTP_USB* ptp_usb, struct usb_device* dev)
 {
-	clear_stall(ptp_usb);
+	//clear_stall(ptp_usb);
         usb_release_interface(ptp_usb->handle,
                 dev->config->interface->altsetting->bInterfaceNumber);
 	usb_reset(ptp_usb->handle);
@@ -694,7 +695,48 @@ err:
 }
 
 void
-nikon_direct_capture (int busn, int devn, short force, int overwrite)
+nikon_initiate_dc (int busn, int devn, short force)
+{
+	PTPParams params;
+	PTP_USB ptp_usb;
+	struct usb_device *dev;
+	uint16_t result;
+    
+	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
+		return;
+
+	printf("Camera: %s\n",params.deviceinfo.Model);
+	printf("\nInitiating direct captue...\n");
+	
+	if (params.deviceinfo.VendorExtensionID!=PTP_VENDOR_NIKON)
+	{
+	    printf ("Your camera is not Nikon!\nDo not buy from %s!\n",params.deviceinfo.Manufacturer);
+	    goto out;
+	}
+
+	if (!ptp_operation_issupported(&params,PTP_OC_NIKON_DirectCapture)) {
+	    printf ("Sorry, your camera dows not support Nikon DirectCapture!\nDo not buy from %s!\n",params.deviceinfo.Manufacturer);
+	    goto out;
+	}
+
+	/* perform direct capture */
+	result=ptp_nikon_directcapture (&params, 0xffffffff);
+	if (result!=PTP_RC_OK) {
+	    ptp_perror(&params,result);
+	    fprintf(stderr,"ERROR: Could not capture.\n");
+	    if (result!=PTP_RC_StoreFull) {
+		close_camera(&ptp_usb, &params, dev);
+		return;
+	    }
+	}
+	usleep(300*1000);
+out:	
+	close_camera(&ptp_usb, &params, dev);
+
+}
+
+void
+nikon_direct_capture (int busn, int devn, short force, char* filename,int overwrite)
 {
 	PTPParams params;
 	PTP_USB ptp_usb;
@@ -705,7 +747,207 @@ nikon_direct_capture (int busn, int devn, short force, int overwrite)
 	int ExposureTime=0;	/* exposure time in miliseconds */
 	int BurstNumber=1;
 	PTPDevicePropDesc dpd;
+	PTPObjectInfo oi;
 	int i;
+    
+	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
+		return;
+
+	printf("Camera: %s\n",params.deviceinfo.Model);
+
+	if ((result=ptp_getobjectinfo(&params,0xffff0001, &oi))==PTP_RC_OK) {
+	    if (filename==NULL) filename=oi.Filename;
+	    save_object(&params, 0xffff0001, filename, oi, overwrite);
+	    goto out;
+	}
+
+	printf("\nInitiating direct captue...\n");
+	
+	if (params.deviceinfo.VendorExtensionID!=PTP_VENDOR_NIKON)
+	{
+	    printf ("Your camera is not Nikon!\nDo not buy from %s!\n",params.deviceinfo.Manufacturer);
+	    goto out;
+	}
+
+	if (!ptp_operation_issupported(&params,PTP_OC_NIKON_DirectCapture)) {
+	    printf ("Sorry, your camera dows not support Nikon DirectCapture!\nDo not buy from %s!\n",params.deviceinfo.Manufacturer);
+	    goto out;
+	}
+
+	/* obtain exposure time in miliseconds */
+	memset(&dpd,0,sizeof(dpd));
+	result=ptp_getdevicepropdesc(&params,PTP_DPC_ExposureTime,&dpd);
+	if (result==PTP_RC_OK) ExposureTime=(*(int32_t*)(dpd.CurrentValue))/10;
+
+	/* obtain burst number */
+	memset(&dpd,0,sizeof(dpd));
+	result=ptp_getdevicepropdesc(&params,PTP_DPC_BurstNumber,&dpd);
+	if (result==PTP_RC_OK) BurstNumber=*(uint16_t*)(dpd.CurrentValue);
+/*
+	if ((result=ptp_getobjectinfo(&params,0xffff0001, &oi))==PTP_RC_OK)
+	{
+	    if (filename==NULL) filename=oi.Filename;
+	    save_object(&params, 0xffff0001, filename, oi, overwrite);
+	    ptp_nikon_keepalive(&params);
+	    ptp_nikon_keepalive(&params);
+	    ptp_nikon_keepalive(&params);
+	    ptp_nikon_keepalive(&params);
+	}
+*/
+
+	/* perform direct capture */
+	result=ptp_nikon_directcapture (&params, 0xffffffff);
+	if (result!=PTP_RC_OK) {
+	    ptp_perror(&params,result);
+	    fprintf(stderr,"ERROR: Could not capture.\n");
+	    if (result!=PTP_RC_StoreFull) {
+		close_camera(&ptp_usb, &params, dev);
+		return;
+	    }
+	}
+	if (BurstNumber>1) printf("Capturing %i frames in burst.\n",BurstNumber);
+
+	/* sleep in case of exposure longer than 1/100 */
+	if (ExposureTime>10) {
+	    printf ("sleeping %i miliseconds\n", ExposureTime);
+	    usleep (ExposureTime*1000);
+	}
+
+	while (BurstNumber>0) {
+
+#if 0	    /* Is this really needed??? */
+	    ptp_nikon_keepalive(&params);
+#endif
+
+	    result=ptp_nikon_checkevent (&params, &events, &nevent);
+	    if (result != PTP_RC_OK) {
+		fprintf(stderr, "Error checking Nikon events\n");
+		ptp_perror(&params,result);
+		goto out;
+	    }
+	    for(i=0;i<nevent;i++) {
+	    ptp_nikon_keepalive(&params);
+		void *prop;
+		if (events[i].code==PTP_EC_DevicePropChanged) {
+		    printf ("Checking: %s\n", ptp_prop_getname(&params, events[i].param1));
+		    ptp_getdevicepropvalue(&params, events[i].param1, &prop, PTP_DTC_UINT64);
+		}
+
+		printf("Event [%i] = 0x%04x,\t param: %08x\n",i, events[i].code ,events[i].param1);
+		if (events[i].code==PTP_EC_NIKON_CaptureOverflow) {
+		    printf("Ram cache overflow? Shooting to fast!\n");
+		    if ((result=ptp_getobjectinfo(&params,0xffff0001, &oi))!=PTP_RC_OK) {
+		        fprintf(stderr, "Could not get object info\n");
+		        ptp_perror(&params,result);
+		        goto out;
+		    }
+		    if (filename==NULL) filename=oi.Filename;
+		    save_object(&params, 0xffff0001, filename, oi, overwrite);
+		    BurstNumber=0;
+		    usleep(100);
+		} else
+		if (events[i].code==PTP_EC_NIKON_ObjectReady) 
+		{
+		    if ((result=ptp_getobjectinfo(&params,0xffff0001, &oi))!=PTP_RC_OK) {
+		        fprintf(stderr, "Could not get object info\n");
+		        ptp_perror(&params,result);
+		        goto out;
+		    }
+		    if (filename==NULL) filename=oi.Filename;
+		    save_object(&params, 0xffff0001, filename, oi, overwrite);
+		    BurstNumber--;
+		}
+	    }
+	    free (events);
+	}
+
+out:	
+	ptpcam_usb_timeout=USB_TIMEOUT;
+	close_camera(&ptp_usb, &params, dev);
+}
+
+
+void
+nikon_direct_capture2 (int busn, int devn, short force, char* filename, int overwrite)
+{
+	PTPParams params;
+	PTP_USB ptp_usb;
+	struct usb_device *dev;
+	uint16_t result;
+	PTPObjectInfo oi;
+
+	dev=find_device(busn,devn,force);
+	if (dev==NULL) {
+		fprintf(stderr,"could not find any device matching given "
+		"bus/dev numbers\n");
+		exit(-1);
+	}
+	find_endpoints(dev,&ptp_usb.inep,&ptp_usb.outep,&ptp_usb.intep);
+
+	init_ptp_usb(&params, &ptp_usb, dev);
+
+	if (ptp_opensession(&params,1)!=PTP_RC_OK) {
+		fprintf(stderr,"ERROR: Could not open session!\n");
+		close_usb(&ptp_usb, dev);
+		return ;
+	}
+/*
+	memset(&dpd,0,sizeof(dpd));
+	result=ptp_getdevicepropdesc(&params,PTP_DPC_BurstNumber,&dpd);
+	memset(&dpd,0,sizeof(dpd));
+	result=ptp_getdevicepropdesc(&params,PTP_DPC_ExposureTime,&dpd);
+*/
+
+	/* perform direct capture */
+	result=ptp_nikon_directcapture (&params, 0xffffffff);
+	if (result!=PTP_RC_OK) {
+	    ptp_perror(&params,result);
+	    fprintf(stderr,"ERROR: Could not capture.\n");
+	    if (result!=PTP_RC_StoreFull) {
+	        close_camera(&ptp_usb, &params, dev);
+	        return;
+	    }
+	}
+
+	if (ptp_closesession(&params)!=PTP_RC_OK)
+	{
+	    fprintf(stderr,"ERROR: Could not close session!\n");
+	    return;
+	}
+
+	usleep(300*1000);
+
+	if (ptp_opensession(&params,1)!=PTP_RC_OK) {
+    		fprintf(stderr,"ERROR: Could not open session!\n");
+    		close_usb(&ptp_usb, dev);
+    		return;
+    	}
+loop:
+    	if ((result=ptp_getobjectinfo(&params,0xffff0001, &oi))==PTP_RC_OK) {
+    	    if (filename==NULL) filename=oi.Filename;
+    	    save_object(&params, 0xffff0001, filename, oi, overwrite);
+    	} else {
+	    ptp_nikon_keepalive(&params);
+	    goto loop;
+	}
+
+out:	
+	close_camera(&ptp_usb, &params, dev);
+
+
+#if 0
+	PTPParams params;
+	PTP_USB ptp_usb;
+	struct usb_device *dev;
+	uint16_t result;
+	uint16_t nevent=0;
+	PTPUSBEventContainer* events=NULL;
+	int ExposureTime=0;	/* exposure time in miliseconds */
+	int BurstNumber=1;
+	PTPDevicePropDesc dpd;
+	PTPObjectInfo oi;
+	int i;
+	char *filename=NULL;
     
 	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
 		return;
@@ -734,41 +976,52 @@ nikon_direct_capture (int busn, int devn, short force, int overwrite)
 	result=ptp_getdevicepropdesc(&params,PTP_DPC_BurstNumber,&dpd);
 	if (result==PTP_RC_OK) BurstNumber=*(uint16_t*)(dpd.CurrentValue);
 
-	/* perform direct capture */
-	result=ptp_nikon_directcapture (&params, 0xffffffff);
-	if (result!=PTP_RC_OK) {
-	    ptp_perror(&params,result);
-	    fprintf(stderr,"ERROR: Could not capture.\n");
-	    if (result!=PTP_RC_StoreFull) {
-		close_camera(&ptp_usb, &params, dev);
-		return;
-	    }
-	}
 	if (BurstNumber>1) printf("Capturing %i frames in burst.\n",BurstNumber);
-
+#if 0
 	/* sleep in case of exposure longer than 1/100 */
 	if (ExposureTime>10) {
 	    printf ("sleeping %i miliseconds\n", ExposureTime);
 	    usleep (ExposureTime*1000);
 	}
+#endif
 
-	while (BurstNumber>0) {
+	while (num>0) {
+	    /* perform direct capture */
+	    result=ptp_nikon_directcapture (&params, 0xffffffff);
+	    if (result!=PTP_RC_OK) {
+	        if (result==PTP_ERROR_IO) {
+	    	close_camera(&ptp_usb, &params, dev);
+	    	return;
+	        }
+	    }
 
 #if 0	    /* Is this really needed??? */
 	    ptp_nikon_keepalive(&params);
 #endif
+	    ptp_nikon_keepalive(&params);
+	    ptp_nikon_keepalive(&params);
+	    ptp_nikon_keepalive(&params);
+	    ptp_nikon_keepalive(&params);
+
 	    result=ptp_nikon_checkevent (&params, &events, &nevent);
 	    if (result != PTP_RC_OK) goto out;
+	    
 	    for(i=0;i<nevent;i++) {
 		printf("Event [%i] = 0x%04x,\t param: %08x\n",i, events[i].code ,events[i].param1);
 		if (events[i].code==PTP_EC_NIKON_ObjectReady) 
 		{
-		    BurstNumber--;
-		    get_save_object(&params, 0xffff0001, NULL, overwrite);
+		    num--;
+		    if ((result=ptp_getobjectinfo(&params,0xffff0001, &oi))!=PTP_RC_OK) {
+		        fprintf(stderr, "Could not get object info\n");
+		        ptp_perror(&params,result);
+		        goto out;
+		    }
+		    if (filename==NULL) filename=oi.Filename;
+		    save_object(&params, 0xffff0001, filename, oi, overwrite);
 		}
 		if (events[i].code==PTP_EC_NIKON_CaptureOverflow) {
 		    printf("Ram cache overflow, capture terminated\n");
-		    BurstNumber=0;
+		    //BurstNumber=0;
 		}
 	    }
 	    free (events);
@@ -777,6 +1030,7 @@ nikon_direct_capture (int busn, int devn, short force, int overwrite)
 out:	
 	ptpcam_usb_timeout=USB_TIMEOUT;
 	close_camera(&ptp_usb, &params, dev);
+#endif
 }
 
 
@@ -868,30 +1122,13 @@ delete_all_files (int busn, int devn, short force)
 	close_camera(&ptp_usb, &params, dev);
 }
 
-
-
 void
-get_save_object (PTPParams *params, uint32_t handle, char* filename, int overwrite)
+save_object(PTPParams *params, uint32_t handle, char* filename, PTPObjectInfo oi, int overwrite)
 {
-
 	int file;
-	PTPObjectInfo oi;
 	char *image;
 	int ret;
 	struct utimbuf timebuf;
-
-    	memset(&oi, 0, sizeof(PTPObjectInfo));
-	if (verbose)
-		printf ("Handle: 0x%08lx\n",(long unsigned) handle);
-	if ((ret=ptp_getobjectinfo(params,handle, &oi))!=PTP_RC_OK) {
-	    fprintf(stderr, "Could not get object info\n");
-	    ptp_perror(params,ret);
-	    if (ret==PTP_ERROR_IO) clear_stall((PTP_USB *)(params->data));
-	    goto out;
-	}
-	if (oi.ObjectFormat == PTP_OFC_Association)
-			goto out;
-	if (filename==NULL) filename=(oi.Filename);
 
 	file=open(filename, (overwrite==OVERWRITE_EXISTING?0:O_EXCL)|O_RDWR|O_CREAT|O_TRUNC,S_IRWXU|S_IRGRP);
 	if (file==-1) {
@@ -919,7 +1156,9 @@ get_save_object (PTPParams *params, uint32_t handle, char* filename, int overwri
 	fflush(NULL);
 	ret=ptp_getobject(params,handle,&image);
 	munmap(image,oi.ObjectCompressedSize);
-	close(file);
+	if (close(file)==-1) {
+	    perror("close");
+	}
 	timebuf.actime=oi.ModificationDate;
 	timebuf.modtime=oi.CaptureDate;
 	utime(filename,&timebuf);
@@ -930,6 +1169,31 @@ get_save_object (PTPParams *params, uint32_t handle, char* filename, int overwri
 	} else {
 		printf("is done.\n");
 	}
+out:
+	return;
+}
+
+void
+get_save_object (PTPParams *params, uint32_t handle, char* filename, int overwrite)
+{
+
+	PTPObjectInfo oi;
+	int ret;
+
+    	memset(&oi, 0, sizeof(PTPObjectInfo));
+	if (verbose)
+		printf ("Handle: 0x%08lx\n",(long unsigned) handle);
+	if ((ret=ptp_getobjectinfo(params,handle, &oi))!=PTP_RC_OK) {
+	    fprintf(stderr, "Could not get object info\n");
+	    ptp_perror(params,ret);
+	    if (ret==PTP_ERROR_IO) clear_stall((PTP_USB *)(params->data));
+	    goto out;
+	}
+	if (oi.ObjectFormat == PTP_OFC_Association)
+			goto out;
+	if (filename==NULL) filename=(oi.Filename);
+
+	save_object(params, handle, filename, oi, overwrite);
 out:
 	return;
 
@@ -1665,6 +1929,10 @@ main(int argc, char ** argv)
 		{"capture",0,0,'c'},
 		{"nikon-dc",0,0,0},
 		{"ndc",0,0,0},
+		{"nikon-ic",0,0,0},
+		{"nic",0,0,0},
+		{"nikon-dc2",0,0,0},
+		{"ndc2",0,0,0},
 		{"loop-capture",1,0,0},
 		{"delete-object",1,0,'d'},
 		{"delete-all-files",1,0,'D'},
@@ -1715,6 +1983,16 @@ main(int argc, char ** argv)
 			    !strcmp("ndc", loptions[option_index].name))
 			{
 			    action=ACT_NIKON_DC;
+			}
+			if (!strcmp("nikon-ic", loptions[option_index].name) ||
+			    !strcmp("nic", loptions[option_index].name))
+			{
+			    action=ACT_NIKON_IC;
+			}
+			if (!strcmp("nikon-dc2", loptions[option_index].name) ||
+			    !strcmp("ndc2", loptions[option_index].name))
+			{
+			    action=ACT_NIKON_DC2;
 			}
 			break;
 		case 'f':
@@ -1831,7 +2109,13 @@ main(int argc, char ** argv)
 			getset_propertybyname(busn,devn,propstr,value,force);
 			break;
 		case ACT_NIKON_DC:
-			nikon_direct_capture(busn,devn,force,overwrite);
+			nikon_direct_capture(busn,devn,force,filename,overwrite);
+			break;
+		case ACT_NIKON_IC:
+			nikon_initiate_dc (busn,devn,force);
+			break;
+		case ACT_NIKON_DC2:
+			nikon_direct_capture2(busn,devn,force,filename,overwrite);
 	}
 
 	return 0;
