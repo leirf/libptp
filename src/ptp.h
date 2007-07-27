@@ -554,6 +554,7 @@ typedef struct _PTPCANONFolderEntry PTPCANONFolderEntry;
 #define PTP_DPC_CANON_CameraModel	0xD032
 #define PTP_DPC_CANON_CameraOwner	0xD033
 #define PTP_DPC_CANON_UnixTime		0xD034
+#define PTP_DPC_CANON_ViewfinderOutput	0xD036
 #define PTP_DPC_CANON_RealImageWidth	0xD039
 #define PTP_DPC_CANON_PhotoEffect	0xD040
 #define PTP_DPC_CANON_AssistLight	0xD041

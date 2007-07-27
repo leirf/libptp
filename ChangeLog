@@ -1,3 +1,6 @@
+2007-07-27 Mariusz Woloszyn
+	* ptp.h: added PTP_DPC_CANON_ViewfinderOutput as requested by 
+	Eric P Caillibot
 2006-06-06 Mariusz Woloszyn
 	* properties.c: added couple fo Nikon D200 properties meanings
 	* ptpcam.c, ptpcam.h: added simple SIGINT handling
