@@ -931,7 +931,7 @@ loop:
 	    goto loop;
 	}
 
-out:	
+/*out:	*/
 	close_camera(&ptp_usb, &params, dev);
 
 

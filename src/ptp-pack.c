@@ -34,7 +34,7 @@ htod32p (PTPParams *params, uint32_t var)
 }
 
 static inline void
-htod16ap (PTPParams *params, unsigned char *a, uint16_t val)
+htod16ap (PTPParams *params, char *a, uint16_t val)
 {
 	if (params->byteorder==PTP_DL_LE)
 		htole16a(a,val); else 
@@ -42,7 +42,7 @@ htod16ap (PTPParams *params, unsigned char *a, uint16_t val)
 }
 
 static inline void
-htod32ap (PTPParams *params, unsigned char *a, uint32_t val)
+htod32ap (PTPParams *params, char *a, uint32_t val)
 {
 	if (params->byteorder==PTP_DL_LE)
 		htole32a(a,val); else 
@@ -62,13 +62,13 @@ dtoh32p (PTPParams *params, uint32_t var)
 }
 
 static inline uint16_t
-dtoh16ap (PTPParams *params, unsigned char *a)
+dtoh16ap (PTPParams *params, char *a)
 {
 	return ((params->byteorder==PTP_DL_LE)?le16atoh(a):be16atoh(a));
 }
 
 static inline uint32_t
-dtoh32ap (PTPParams *params, unsigned char *a)
+dtoh32ap (PTPParams *params, char *a)
 {
 	return ((params->byteorder==PTP_DL_LE)?le32atoh(a):be32atoh(a));
 }
@@ -534,10 +534,10 @@ ptp_unpack_DPD (PTPParams *params, char* data, PTPDevicePropDesc *dpd)
 		/* XXX: other int types are unimplemented */
 		/* XXX: int arrays are unimplemented also */
 		case PTP_DTC_STR:
-			*(char **)&dpd->FactoryDefaultValue = ptp_unpack_string
+			dpd->FactoryDefaultValue = (void *)ptp_unpack_string
 				(params,data,PTP_dpd_FactoryDefaultValue,&len);
 			totallen=len*2+1;
-			*(char **)&dpd->CurrentValue = ptp_unpack_string
+			dpd->CurrentValue = (void *)ptp_unpack_string
 				(params, data, PTP_dpd_FactoryDefaultValue + 
 				totallen, &len);
 			totallen+=len*2+1;

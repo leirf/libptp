@@ -312,7 +312,7 @@ ptp_transaction (PTPParams* params, PTPContainer* ptp,
 	switch (flags&PTP_DP_DATA_MASK) {
 		case PTP_DP_SENDDATA:
 			CHECK_PTP_RC(params->senddata_func(params, ptp,
-				*data, sendlen));
+				(unsigned char*)*data, sendlen));
 			break;
 		case PTP_DP_GETDATA:
 			CHECK_PTP_RC(params->getdata_func(params, ptp,
