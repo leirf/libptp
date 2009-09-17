@@ -18,6 +18,6 @@ else
 ptpcam_SOURCES = ptpcam.c ptpcam.h
 endif
 ptpcam_LDADD = -lptp2 @PTPCAM_LDFLAGS@
-ptpcam_DEPENDANCIES = libptp2.la
+ptpcam_DEPENDENCIES = libptp2.la
 ptpcam_CFLAGS = @PTPCAM_CFLAGS@
 endif
