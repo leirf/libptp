@@ -17,7 +17,8 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include <config.h>
-#ifdef LINUX_OS
+#if 0	/* Seems this is no longer needed at all */
+//#ifdef LINUX_OS
 
 /*
  * libusb has changed the kernel interface used for bulk read/write operations.

@@ -19,7 +19,8 @@
 #ifndef __PTPCAM_H__
 #define __PTPCAM_H__
 
-#ifdef LINUX_OS
+#if 0	/* This is no longer needed at all */
+//#ifdef LINUX_OS
 #define USB_BULK_READ myusb_bulk_read
 #define USB_BULK_WRITE myusb_bulk_write
 int myusb_bulk_read(usb_dev_handle *dev, int ep, char *bytes, int size,
