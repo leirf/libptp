@@ -179,7 +179,8 @@ ptp_usb_getdata (PTPParams* params, PTPContainer* ptp,
 			ret = PTP_ERROR_IO;
 			break;
 		} else
-		if (dtoh16(usbdata.type)!=PTP_USB_CONTAINER_DATA) {
+		if (dtoh16(usbdata.type)!=PTP_USB_CONTAINER_DATA
+			&& dtoh16(usbdata.type)!=PTP_USB_CONTAINER_RESPONSE) {
 			ret = PTP_ERROR_DATA_EXPECTED;
 			break;
 		} else
@@ -297,7 +298,7 @@ ptp_usb_getresp (PTPParams* params, PTPContainer* resp)
  * Upon success PTPContainer* ptp contains PTP Response Phase container with
  * all fields filled in.
  **/
-static uint16_t
+ uint16_t
 ptp_transaction (PTPParams* params, PTPContainer* ptp, 
 			uint16_t flags, unsigned int sendlen, char** data)
 {
