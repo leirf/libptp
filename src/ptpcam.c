@@ -245,7 +245,6 @@ ptpcam_error (void *data, const char *format, va_list args);
 void
 ptpcam_error (void *data, const char *format, va_list args)
 {
-/*	if (!verbose) return; */
 	vfprintf (stderr, format, args);
 	fprintf (stderr,"\n");
 	fflush(stderr);
@@ -1384,9 +1383,9 @@ set_property (PTPParams* params,
 	return 0;
 }
 void
-getset_property_internal (PTPParams* params, uint16_t property,const char* value);
+getset_property_internal (PTPParams* params, uint16_t property,const char* value, short force);
 void
-getset_property_internal (PTPParams* params, uint16_t property,const char* value)
+getset_property_internal (PTPParams* params, uint16_t property,const char* value, short force)
 {
 	PTPDevicePropDesc dpd;
 	const char* propname;
@@ -1396,7 +1395,7 @@ getset_property_internal (PTPParams* params, uint16_t property,const char* value
 
 	memset(&dpd,0,sizeof(dpd));
 	result=ptp_getdevicepropdesc(params,property,&dpd);
-	if (result!=PTP_RC_OK) {
+	if (result!=PTP_RC_OK&&!force) {
 		ptp_perror(params,result); 
 		fprintf(stderr,"ERROR: "
 		"Could not get device property description!\n"
@@ -1580,10 +1579,11 @@ getset_propertybyname (int busn,int devn,char* property,char* value,short force)
 		if (propval==NULL) propval=value;
 	}
 
-	getset_property_internal (&params, dpc,propval);
+	getset_property_internal (&params, dpc,propval, force);
 
 	close_camera(&ptp_usb, &params, dev);
 }
+
 void
 getset_property (int busn,int devn,uint16_t property,char* value,short force);
 void
@@ -1603,124 +1603,75 @@ getset_property (int busn,int devn,uint16_t property,char* value,short force)
 		printf(" (bus %i, dev %i)\n",busn,devn);
 	else
 		printf("\n");
-	if (!ptp_property_issupported(&params, property))
+	if (!ptp_property_issupported(&params, property)&&!force)
 	{
 		fprintf(stderr,"The device does not support this property!\n");
 		close_camera(&ptp_usb, &params, dev);
 		return;
 	}
 
-	getset_property_internal (&params, property,value);
-#if 0
-	memset(&dpd,0,sizeof(dpd));
-	CR(ptp_getdevicepropdesc(&params,property,&dpd),
-		"Could not get device property description!\n"
-		"Try to reset the camera.\n");
-	propdesc= ptp_prop_getdesc(&params, &dpd, NULL);
-	propname=ptp_prop_getname(&params,property);
-
-	if (value==NULL) { /* property GET */
-		if (!verbose) { /* short output, default */
-			printf("'%s' is set to: ", propname==NULL?"UNKNOWN":propname);
-			if (propdesc!=NULL)
-				printf("%s [%s]", ptp_prop_tostr(&params, &dpd,
-							NULL), propdesc);
-			else 
-			{
-				if (dpd.FormFlag==PTP_DPFF_Enumeration)
-					PRINT_PROPVAL_HEX(dpd.CurrentValue);
-				else 
-					PRINT_PROPVAL_DEC(dpd.CurrentValue);
-			}
-			printf("\n");
-	
-		} else { /* verbose output */
-	
-			printf("%s: [0x%04x, ",propname==NULL?"UNKNOWN":propname,
-					property);
-			if (dpd.GetSet==PTP_DPGS_Get)
-				printf ("readonly, ");
-			else
-				printf ("readwrite, ");
-			printf ("%s] ",
-				ptp_get_datatype_name(&params, dpd.DataType));
-
-			printf ("\n  Current value: ");
-			if (dpd.FormFlag==PTP_DPFF_Enumeration)
-				PRINT_PROPVAL_HEX(dpd.CurrentValue);
-			else 
-				PRINT_PROPVAL_DEC(dpd.CurrentValue);
-
-			if (propdesc!=NULL)
-				printf(" [%s]", propdesc);
-			printf ("\n  Factory value: ");
-			if (dpd.FormFlag==PTP_DPFF_Enumeration)
-				PRINT_PROPVAL_HEX(dpd.FactoryDefaultValue);
-			else 
-				PRINT_PROPVAL_DEC(dpd.FactoryDefaultValue);
-			propdesc=ptp_prop_getdesc(&params, &dpd,
-						dpd.FactoryDefaultValue);
-			if (propdesc!=NULL)
-				printf(" [%s]", propdesc);
-			printf("\n");
-
-			switch (dpd.FormFlag) {
-			case PTP_DPFF_Enumeration:
-				{
-					int i;
-					printf ("Enumerated:\n");
-					for(i=0;i<dpd.FORM.Enum.NumberOfValues;i++){
-						PRINT_PROPVAL_HEX(
-						dpd.FORM.Enum.SupportedValue[i]);
-						propdesc=ptp_prop_getdesc(&params, &dpd, dpd.FORM.Enum.SupportedValue[i]);
-						if (propdesc!=NULL) printf("\t[%s]", propdesc);
-						printf("\n");
-					}
-				}
-				break;
-			case PTP_DPFF_Range:
-				printf ("Range [");
-				PRINT_PROPVAL_DEC(dpd.FORM.Range.MinimumValue);
-				printf(" - ");
-				PRINT_PROPVAL_DEC(dpd.FORM.Range.MaximumValue);
-				printf("; step ");
-				PRINT_PROPVAL_DEC(dpd.FORM.Range.StepSize);
-				printf("]\n");
-				break;
-			case PTP_DPFF_None:
-				break;
-			}
-		}
-	} else {
-		uint16_t r;
-		propdesc= ptp_prop_getdesc(&params, &dpd, NULL);
-		printf("'%s' is set to: ", propname==NULL?"UNKNOWN":propname);
-		if (propdesc!=NULL)
-			printf("%s [%s]", ptp_prop_tostr(&params, &dpd, NULL), propdesc);
-		else
-		{
-			if (dpd.FormFlag==PTP_DPFF_Enumeration)
-				PRINT_PROPVAL_HEX(dpd.CurrentValue);
-			else 
-				PRINT_PROPVAL_DEC(dpd.CurrentValue);
-		}
-		printf("\n");
-		printf("Changing property value to '%s' ",value);
-		r=(set_property(&params, property, value, dpd.DataType));
-		if (r!=PTP_RC_OK)
-		{
-			printf ("FAILED!!!\n");
-			fflush(NULL);
-		        ptp_perror(&params,r);
-		}
-		else 
-			printf ("succeeded.\n");
-	}
-	ptp_free_devicepropdesc(&dpd);
-#endif
+	getset_property_internal (&params, property,value, force);
 
 	close_camera(&ptp_usb, &params, dev);
 }
+
+void
+getset_property_value (int busn,int devn,uint16_t property,char* value,short force);
+void
+getset_property_value (int busn,int devn,uint16_t property,char* value,short force)
+{
+	PTPParams params;
+	PTP_USB ptp_usb;
+	struct usb_device *dev;
+
+	printf ("\n");
+
+	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
+		return;
+
+	printf("Camera: %s",params.deviceinfo.Model);
+	if ((devn!=0)||(busn!=0)) 
+		printf(" (bus %i, dev %i)\n",busn,devn);
+	else
+		printf("\n");
+	if (!ptp_property_issupported(&params, property)&&!force)
+	{
+		fprintf(stderr,"The device does not support this property!\n");
+		close_camera(&ptp_usb, &params, dev);
+		return;
+	}
+
+	
+
+/* Transaction data phase description */
+#define PTP_DP_NODATA		0x0000	/* no data phase */
+#define PTP_DP_SENDDATA		0x0001	/* sending data */
+#define PTP_DP_GETDATA		0x0002	/* receiving data */
+#define PTP_DP_DATA_MASK	0x00ff	/* data phase mask */
+#define PTP_CNT_INIT(cnt) {memset(&cnt,0,sizeof(cnt));}
+	PTPContainer ptp;
+	uint16_t ret;
+	char* dpv=NULL;
+
+	PTP_CNT_INIT(ptp);
+	ptp.Code=PTP_OC_GetDevicePropValue;
+	ptp.Param1=property;
+	ptp.Nparam=1;
+	ret=ptp_transaction(&params, &ptp, PTP_DP_GETDATA, 0, &dpv);
+	//result =ptp_getdevicepropvalue (&params, property, &prop, PTP_DTC_UINT8);
+
+	if (ret!=PTP_RC_OK) {
+		ptp_perror(&params,ret); 
+		fprintf(stderr,"ERROR: "
+		"Could not get device property description!\n"
+		"Try to reset the camera.\n");
+		if (!force) return ;
+	}
+	if (dpv) printf("%x is set to: %08x\n", property, *((uint8_t*)dpv));
+
+	close_camera(&ptp_usb, &params, dev);
+}
+
 
 void
 show_all_properties (int busn,int devn,short force, int unknown);
@@ -1891,6 +1842,60 @@ reset_device (int busn, int devn, short force)
 
 	close_usb(&ptp_usb, dev);
 
+}
+
+
+uint16_t
+ptp_transaction_nodata (PTPParams* params, PTPContainer* ptp);
+uint16_t
+ptp_transaction_nodata (PTPParams* params, PTPContainer* ptp)
+{
+	return (ptp_transaction(params, ptp, PTP_DP_NODATA, 0, 0));
+}
+
+uint16_t
+ptp_transaction_getdata (PTPParams* params, PTPContainer* ptp, char** data);
+uint16_t
+ptp_transaction_getdata (PTPParams* params, PTPContainer* ptp, char** data)
+{
+	return (ptp_transaction(params, ptp, PTP_DP_GETDATA, 0, data));
+}
+
+uint16_t
+ptp_transaction_senddata (PTPParams* params, PTPContainer* ptp, unsigned int sendlen, char* data);
+uint16_t
+ptp_transaction_senddata (PTPParams* params, PTPContainer* ptp, unsigned int sendlen, char* data)
+{
+	return (ptp_transaction(params, ptp, PTP_DP_SENDDATA, sendlen, &data));
+}
+
+void ptphack()
+{
+	PTPParams params;
+	PTP_USB ptp_usb;
+	struct usb_device *dev;
+	PTPContainer ptp;
+
+	char* data=NULL;
+
+	PTPDeviceInfo 	PTPDeviceInfo={};
+	PTPStorageIDs 	PTPStorageIDs={};
+	PTPStorageInfo 	PTPStorageInfo={};
+	PTPObjectHandles 	PTPObjectHandles={};
+	PTPObjectInfo	PTPObjectInfo={};
+	PTPPropDescRangeForm 	PTPPropDescRangeForm={};
+	PTPPropDescEnumForm 	PTPPropDescEnumForm={};
+	PTPDevicePropDesc 	PTPDevicePropDesc={};
+	PTPCANONFolderEntry 	PTPCANONFolderEntry={};
+
+	raise(SIGINT);
+	    
+	if (open_camera(0, 0, 0, &ptp_usb, &params, &dev)<0)
+		return;
+
+	//ptp_transaction(&params, &ptp, PTP_DP_GETDATA, 0, &dpv);
+	
+	close_camera(&ptp_usb, &params, dev);
 }
 
 /* main program  */
@@ -2070,6 +2075,7 @@ main(int argc, char ** argv)
 			list_properties(busn,devn,force);
 			break;
 		case ACT_GETSET_PROPERTY:
+			//getset_property_value(busn,devn,property,value,force);
 			getset_property(busn,devn,property,value,force);
 			break;
 		case ACT_SHOW_INFO:
