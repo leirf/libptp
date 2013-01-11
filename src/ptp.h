@@ -709,6 +709,7 @@ typedef uint16_t (* PTPIOSendData)	(PTPParams* params, PTPContainer* ptp,
 					unsigned char *data, unsigned int size);
 typedef uint16_t (* PTPIOGetResp)	(PTPParams* params, PTPContainer* resp);
 typedef uint16_t (* PTPIOGetData)	(PTPParams* params, PTPContainer* ptp,
+					uint32_t *getlen,
 					unsigned char **data);
 /* debug functions */
 typedef void (* PTPErrorFunc) (void *data, const char *format, va_list args);
@@ -755,8 +756,8 @@ uint16_t ptp_usb_sendreq	(PTPParams* params, PTPContainer* req);
 uint16_t ptp_usb_senddata	(PTPParams* params, PTPContainer* ptp,
 				unsigned char *data, unsigned int size);
 uint16_t ptp_usb_getresp	(PTPParams* params, PTPContainer* resp);
-uint16_t ptp_usb_getdata	(PTPParams* params, PTPContainer* ptp, 
-				unsigned char **data);
+uint16_t ptp_usb_getdata	(PTPParams* params, PTPContainer* ptp,  
+				unsigned int *getlen, unsigned char **data);
 uint16_t ptp_usb_event_check	(PTPParams* params, PTPContainer* event);
 uint16_t ptp_usb_event_wait		(PTPParams* params, PTPContainer* event);
 

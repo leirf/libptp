@@ -160,7 +160,7 @@ ptp_usb_senddata (PTPParams* params, PTPContainer* ptp,
 }
 
 uint16_t
-ptp_usb_getdata (PTPParams* params, PTPContainer* ptp,
+ptp_usb_getdata (PTPParams* params, PTPContainer* ptp,  unsigned int *getlen, 
 		unsigned char **data)
 {
 	static uint16_t ret;
@@ -171,7 +171,6 @@ ptp_usb_getdata (PTPParams* params, PTPContainer* ptp,
 	if (*data!=NULL) return PTP_ERROR_BADPARAM;
 #endif
 	do {
-		static uint32_t len;
 		/* read first(?) part of data */
 		ret=params->read_func((unsigned char *)&usbdata,
 				sizeof(usbdata), params->data);
@@ -189,19 +188,19 @@ ptp_usb_getdata (PTPParams* params, PTPContainer* ptp,
 			break;
 		}
 		/* evaluate data length */
-		len=dtoh32(usbdata.length)-PTP_USB_BULK_HDR_LEN;
+		*getlen=dtoh32(usbdata.length)-PTP_USB_BULK_HDR_LEN;
 		/* allocate memory for data if not allocated already */
-		if (*data==NULL) *data=calloc(1,len);
+		if (*data==NULL) *data=calloc(1,*getlen);
 		/* copy first part of data to 'data' */
 		memcpy(*data,usbdata.payload.data,
-			PTP_USB_BULK_PAYLOAD_LEN<len?
-			PTP_USB_BULK_PAYLOAD_LEN:len);
+			PTP_USB_BULK_PAYLOAD_LEN<*getlen?
+			PTP_USB_BULK_PAYLOAD_LEN:*getlen);
 		/* is that all of data? */
-		if (len+PTP_USB_BULK_HDR_LEN<=sizeof(usbdata)) break;
+		if (*getlen+PTP_USB_BULK_HDR_LEN<=sizeof(usbdata)) break;
 		/* if not finaly read the rest of it */
 		ret=params->read_func(((unsigned char *)(*data))+
 					PTP_USB_BULK_PAYLOAD_LEN,
-					len-PTP_USB_BULK_PAYLOAD_LEN,
+					*getlen-PTP_USB_BULK_PAYLOAD_LEN,
 					params->data);
 		if (ret!=PTP_RC_OK) {
 			ret = PTP_ERROR_IO;
@@ -316,8 +315,13 @@ ptp_transaction (PTPParams* params, PTPContainer* ptp,
 				(unsigned char*)*data, sendlen));
 			break;
 		case PTP_DP_GETDATA:
+			{
+			unsigned int getlen;
 			CHECK_PTP_RC(params->getdata_func(params, ptp,
+				    sendlen?(unsigned int *)(((uint64_t)(&getlen)&0xffffffff00000000)|sendlen):
+				    &getlen,
 				(unsigned char**)data));
+			}
 			break;
 		case PTP_DP_NODATA:
 			break;

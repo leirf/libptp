@@ -1854,11 +1854,11 @@ ptp_transaction_nodata (PTPParams* params, PTPContainer* ptp)
 }
 
 uint16_t
-ptp_transaction_getdata (PTPParams* params, PTPContainer* ptp, char** data);
+ptp_transaction_getdata (PTPParams* params, PTPContainer* ptp, unsigned int *getlen, char** data);
 uint16_t
-ptp_transaction_getdata (PTPParams* params, PTPContainer* ptp, char** data)
+ptp_transaction_getdata (PTPParams* params, PTPContainer* ptp, unsigned int *getlen, char** data)
 {
-	return (ptp_transaction(params, ptp, PTP_DP_GETDATA, 0, data));
+	return (ptp_transaction(params, ptp, PTP_DP_GETDATA, (unsigned int) getlen, data));
 }
 
 uint16_t
@@ -1871,10 +1871,11 @@ ptp_transaction_senddata (PTPParams* params, PTPContainer* ptp, unsigned int sen
 
 void ptphack()
 {
-	PTPParams params;
-	PTP_USB ptp_usb;
+	PTPParams params={};
+	PTP_USB ptp_usb={};
 	struct usb_device *dev;
-	PTPContainer ptp;
+	PTPContainer ptp={};
+	int getlen=0;
 
 	char* data=NULL;
 
