@@ -148,7 +148,7 @@ void delete_all_files (int busn, int devn, short force);
 void list_operations (int busn, int devn, short force);
 void list_devices(short force);
 void list_properties (int dev, int bus, short force);
-void loop_capture (int busn, int devn, short force, int n,  int overwrite);
+void loop_capture (int busn, int devn, short force, int n, int interval, int overwrite);
 void save_object(PTPParams *params, uint32_t handle, char* filename, PTPObjectInfo oi, int overwrite);
 void get_save_object (PTPParams *params, uint32_t handle, char* filename, int overwrite);
 

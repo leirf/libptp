@@ -136,9 +136,11 @@ help()
 	"  -D, --delete-all-files       Delete all files form camera\n"
 	"                               \n"
 	"  -c, --capture                Initiate capture\n"
+	"  --loop-capture=N             Perform N times capture/get/delete\n"
+	"  --interval=N                 Set loop capture interval in seconds\n"
+	"                               Nikon commands are experimental!\n"
 	"  --nikon-ic, --nic            Initiate Nikon Direct Capture (no download!)\n"
 	"  --nikon-dc, --ndc            Initiate Nikon Direct Capture and download\n"
-	"  --loop-capture=N             Perform N times capture/get/delete\n"
 	"                               \n"
 	"  --overwrite                  Force file overwrite while saving"
 					"to disk\n"
@@ -590,8 +592,12 @@ out:
 	close_camera(&ptp_usb, &params, dev);
 }
 
+static void sig_alrm(int signo)
+{
+}
+
 void
-loop_capture (int busn, int devn, short force, int n,  int overwrite)
+loop_capture (int busn, int devn, short force, int n, int interval, int overwrite)
 {
 	PTPParams params;
 	PTP_USB ptp_usb;
@@ -603,6 +609,11 @@ loop_capture (int busn, int devn, short force, int n,  int overwrite)
 	char *image;
 	int ret;
 	char *filename;
+	time_t start_time;
+	time_t rest_time;
+
+	// Catch the SIGALARM
+	signal(SIGALRM, sig_alrm);
 
 	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
 		return;
@@ -612,10 +623,10 @@ loop_capture (int busn, int devn, short force, int n,  int overwrite)
 
 	printf("Camera: %s\n",params.deviceinfo.Model);
 
-
 	/* local loop */
 	while (n>0) {
 		/* capture */
+		time(&start_time);
 		printf("\nInitiating captue...\n");
 		CR(ptp_initiatecapture (&params, 0x0, 0),"Could not capture\n");
 		n--;
@@ -690,6 +701,12 @@ download:
 			printf("Object 0x%08lx (%s) deleted.\n",(long unsigned) handle, oi.Filename);
 		}
 out:
+		rest_time=interval-(time(NULL)-start_time);
+		if (rest_time>0 && n>0) {
+		    printf("Sleeping for remaining %u seconds.\n",rest_time);
+		    alarm(rest_time);
+		    pause();
+		}
 		;
 	}
 err:
@@ -1920,6 +1937,7 @@ main(int argc, char ** argv)
 	uint32_t handle=0;
 	char *filename=NULL;
 	int num=0;
+	int interval=0;
 	/* parse options */
 	int option_index = 0,opt;
 	static struct option loptions[] = {
@@ -1946,6 +1964,7 @@ main(int argc, char ** argv)
 		{"nikon-dc2",0,0,0},
 		{"ndc2",0,0,0},
 		{"loop-capture",1,0,0},
+		{"interval",1,0,0},
 		{"delete-object",1,0,'d'},
 		{"delete-all-files",1,0,'D'},
 		{"info",0,0,'i'},
@@ -1991,6 +2010,8 @@ main(int argc, char ** argv)
 				propstr=strdup(optarg);
 				action=ACT_SET_PROPBYNAME;
 			}
+			if (!(strcmp("interval",loptions[option_index].name)))
+				interval=strtol(optarg,NULL,10);
 			if (!strcmp("nikon-dc", loptions[option_index].name) ||
 			    !strcmp("ndc", loptions[option_index].name))
 			{
@@ -2110,7 +2131,7 @@ main(int argc, char ** argv)
 			delete_all_files(busn,devn,force);
 			break;
 		case ACT_LOOP_CAPTURE:
-			loop_capture (busn,devn,force,num,overwrite);
+			loop_capture (busn,devn,force,num,interval, overwrite);
 			break;
 		case ACT_SHOW_ALL_PROPERTIES:
 			show_all_properties(busn,devn,force,0);
