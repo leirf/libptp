@@ -113,10 +113,10 @@ help()
 	"  -r, --reset                  Reset the device\n"
 	"  -l, --list-devices           List all PTP devices\n"
 	"  -i, --info                   Show device info\n"
-	"  -o, --list-operations        List supported operations\n"
-	"  -p, --list-properties        List all PTP device properties\n"
+	"  -o, --list-operations        List all supported operations\n"
+	"  -p, --list-properties        List all supported device properties\n"
 	"                               "
-				"(e.g. focus mode, focus distance, etc.)\n"
+					"(e.g. focus mode, focus distance, etc.)\n"
 	"  -s, --show-property=NUMBER   Display property details "
 					"(or set its value,\n"
 	"                               if used in conjunction with --val)\n"
@@ -1282,11 +1282,6 @@ list_properties (int busn, int devn, short force)
 
 	if (open_camera(busn, devn, force, &ptp_usb, &params, &dev)<0)
 		return;
-/* XXX */
-#if 0
-	CR(ptp_nikon_setcontrolmode(&params, 0x01),
-		"Unable to set Nikon PC controll mode\n");
-#endif
 	printf("Camera: %s\n",params.deviceinfo.Model);
 	for (i=0; i<params.deviceinfo.DevicePropertiesSupported_len;i++){
 		propname=ptp_prop_getname(&params,
@@ -1702,7 +1697,7 @@ show_all_properties (int busn,int devn,short force, int unknown)
 				params.deviceinfo.DevicePropertiesSupported[i]);
 		if ((unknown) && (propname!=NULL)) continue;
 
-		printf("0x%04x: ",
+		printf("  0x%04x: ",
 				params.deviceinfo.DevicePropertiesSupported[i]);
 		memset(&dpd,0,sizeof(dpd));
 		CR(ptp_getdevicepropdesc(&params,
@@ -1711,14 +1706,14 @@ show_all_properties (int busn,int devn,short force, int unknown)
 			"Try to reset the camera.\n");
 		propdesc= ptp_prop_getdesc(&params, &dpd, NULL);
 
-		PRINT_PROPVAL_HEX(dpd.CurrentValue);
 		if (verbose) {
-			printf (" (%s",propname==NULL?"UNKNOWN":propname);
+			printf ("(%s",propname==NULL?"UNKNOWN":propname);
 			if (propdesc!=NULL)
-				printf(": %s)",propdesc);
+				printf(": %s) ",propdesc);
 			else
-				printf(")");
+				printf(") ");
 		}
+		PRINT_PROPVAL_DEC(dpd.CurrentValue);
 	
 		printf("\n");
 		ptp_free_devicepropdesc(&dpd);
@@ -1889,12 +1884,18 @@ void ptphack()
 	PTPDevicePropDesc 	PTPDevicePropDesc={};
 	PTPCANONFolderEntry 	PTPCANONFolderEntry={};
 
-	raise(SIGINT);
-	    
 	if (open_camera(0, 0, 0, &ptp_usb, &params, &dev)<0)
 		return;
 
+	raise(SIGINT);
+
 	//ptp_transaction(&params, &ptp, PTP_DP_GETDATA, 0, &dpv);
+	/*
+	 * ptp_transaction_nodata(&params, &ptp)
+	 * ptp_transaction_getdata(&params, &ptp, &getlen, &data)
+	 * ptp_transaction_senddata(&params, &ptp, sendlen, data)
+	 *
+	 */
 	
 	close_camera(&ptp_usb, &params, dev);
 }
