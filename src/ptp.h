@@ -159,7 +159,7 @@ typedef struct _PTPUSBEventContainer PTPUSBEventContainer;
 #define PTP_OC_CANON_GetViewfinderImage	0x901d
 #define PTP_OC_CANON_GetChanges		0x9020
 #define PTP_OC_CANON_GetFolderEntries	0x9021
-/* Microsoft / MTP extension codes */
+/* MTP extension Operation Codes */
 #define	PTP_OC_MTP_GetObjectPropsSupported	0x9801
 #define	PTP_OC_MTP_GetObjectPropDesc		0x9802
 #define	PTP_OC_MTP_GetObjectPropValue		0x9803
@@ -693,6 +693,15 @@ typedef struct _PTPCANONFolderEntry PTPCANONFolderEntry;
 #define PTP_DPC_NIKON_CSMMenu			        0xD180
 #define PTP_DPC_NIKON_OptimizeImage		        0xD140
 #define PTP_DPC_NIKON_Saturation		        0xD142
+/* MTP extension device property codes */
+#define	PTP_DPC_MTP_SynchronizationPartner	0xD401
+#define	PTP_DPC_MTP_DeviceFriendlyName		0xD402
+#define	PTP_DPC_MTP_Volume			0xD403
+#define	PTP_DPC_MTP_SupportedFormatsOrdered	0xD404
+#define	PTP_DPC_MTP_DeviceIcon			0xD405
+#define	PTP_DPC_MTP_PlaybackRate		0xD410
+#define	PTP_DPC_MTP_PlaybackObject		0xD411
+#define	PTP_DPC_MTP_PlaybackContainerIndex	0xD412
 
 /* Device Property Form Flag */
 
