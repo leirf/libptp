@@ -159,6 +159,19 @@ typedef struct _PTPUSBEventContainer PTPUSBEventContainer;
 #define PTP_OC_CANON_GetViewfinderImage	0x901d
 #define PTP_OC_CANON_GetChanges		0x9020
 #define PTP_OC_CANON_GetFolderEntries	0x9021
+/* Microsoft / MTP extension codes */
+#define	PTP_OC_MTP_GetObjectPropsSupported	0x9801
+#define	PTP_OC_MTP_GetObjectPropDesc		0x9802
+#define	PTP_OC_MTP_GetObjectPropValue		0x9803
+#define	PTP_OC_MTP_SetObjectPropValue		0x9804
+#define	PTP_OC_MTP_GetObjPropList	0x9805
+#define	PTP_OC_MTP_SetObjPropList	0x9806
+#define	PTP_OC_MTP_GetInterdependendPropDesc	0x9807
+#define	PTP_OC_MTP_SendObjectPropList		0x9808
+#define	PTP_OC_MTP_GetObjectReferences		0x9810
+#define	PTP_OC_MTP_SetObjectReferences		0x9811
+#define	PTP_OC_MTP_UpdateDeviceFirmware		0x9812
+#define	PTP_OC_MTP_Skip			0x9820
 /* Nikon extensiion Operation Codes */
 #define PTP_OC_NIKON_DirectCapture	0x90C0
 #define PTP_OC_NIKON_SetControlMode	0x90C2
