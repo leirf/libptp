@@ -136,9 +136,9 @@ help()
 	"  -D, --delete-all-files       Delete all files form camera\n"
 	"                               \n"
 	"  -c, --capture                Initiate capture\n"
-	"  --loop-capture=N             Perform N times capture/get/delete\n"
+	"  --loop-capture=N             Perform N times capture/get/delete sequence\n"
 	"  --interval=N                 Set loop capture interval in seconds\n"
-	"                               Nikon commands are experimental!\n"
+	"                               Following Nikon commands are EXPERIMENTAL!\n"
 	"  --nikon-ic, --nic            Initiate Nikon Direct Capture (no download!)\n"
 	"  --nikon-dc, --ndc            Initiate Nikon Direct Capture and download\n"
 	"                               \n"
@@ -829,10 +829,10 @@ nikon_direct_capture (int busn, int devn, short force, char* filename,int overwr
 	if (BurstNumber>1) printf("Capturing %i frames in burst.\n",BurstNumber);
 
 	/* sleep in case of exposure longer than 1/100 */
-	if (ExposureTime>10) {
-	    printf ("sleeping %i miliseconds\n", ExposureTime);
-	    usleep (ExposureTime*1000);
-	}
+	//if (ExposureTime>10) {
+	    printf ("sleeping %i miliseconds\n", 500+ExposureTime);
+	    usleep (ExposureTime*1000+500000);
+	//}
 
 	while (BurstNumber>0) {
 
