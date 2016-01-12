@@ -1,3 +1,5 @@
+2016-01-12 Hedi Hamzaoui (Parrot S.A.)
+	* New option to send generic PTP commands from commandline
 2013-01-11 Mariusz Woloszyn
 	* Started work on 1.2
 2007-08-23 Mariusz Woloszyn
