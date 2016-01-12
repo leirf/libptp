@@ -93,6 +93,7 @@ int myusb_bulk_write(usb_dev_handle *dev, int ep, char *bytes, int length,
 #define ACT_SHOW_ALL_PROPERTIES	0xE
 #define ACT_SHOW_UNKNOWN_PROPERTIES	0xF
 #define ACT_SET_PROPBYNAME	0x10
+#define ACT_GENERIC_REQ     0x11
 
 #define ACT_NIKON_DC		0x101
 #define ACT_NIKON_DC2		0x102
@@ -135,6 +136,7 @@ void ptpcam_siginthandler(int signum);
 
 void usage(void);
 void help(void);
+void display_hexdump(char *data, size_t size);
 void list_devices(short force);
 void show_info (int busn, int devn, short force);
 void list_files (int busn, int devn, short force);
@@ -151,6 +153,7 @@ void list_properties (int dev, int bus, short force);
 void loop_capture (int busn, int devn, short force, int n, int interval, int overwrite);
 void save_object(PTPParams *params, uint32_t handle, char* filename, PTPObjectInfo oi, int overwrite);
 void get_save_object (PTPParams *params, uint32_t handle, char* filename, int overwrite);
+void send_generic_request (int busn, int devn, uint16_t reqCode, uint32_t *params, uint32_t direction, char *data_file);
 
 
 struct usb_bus* init_usb(void);

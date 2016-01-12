@@ -142,12 +142,55 @@ help()
 	"  --nikon-ic, --nic            Initiate Nikon Direct Capture (no download!)\n"
 	"  --nikon-dc, --ndc            Initiate Nikon Direct Capture and download\n"
 	"                               \n"
+	"  -R reqCode[,P1,P2,P3,P4,P5,d] Send a raw generic request with parameters\n"
+	"                               parameters Pn are optionnal and can be set to 0\n"
+	"                               if not used (params values must be hexadecimal)\n"
+	"                               d, is the data direction (r=read, n=no data, \n"
+	"                               filename or value to send in hexadecimal).\n"
+	"                               The default data direction is 'r'.\n"
+	"                               If you want to send data, give the file name\n"
+	"                               containing data to send, or, if the data is short,\n"
+	"                               you can directly write the value in hexadecimal.\n"
+	"                               The result data and response will be displayed\n"
+	"                      example: ptpcam -R 0x1015,0x5003,0,0,0,0,r\n"
+	"                               ptpcam -R 0x1016,0x5003,0,0,0,0,image_size.bin\n"
+	"                               ptpcam -R 0x1016,0x501b,0,0,0,0,0x88130000\n"
+	"                               ptpcam -R 0x100e,0,0,0,0,0,n\n"
+	"                               \n"
 	"  --overwrite                  Force file overwrite while saving"
 					"to disk\n"
 	"  -f, --force                  Talk to non PTP devices\n"
 	"  -v, --verbose                Be verbose (print more debug)\n"
 	"  -h, --help                   Print this help message\n"
 	"\n");
+}
+
+void
+display_hexdump(char *data, size_t size)
+{
+	uint i=0;
+	char buffer[50];
+	char charBuf[17];
+	
+	memset((void*)buffer, 0, 49);
+	memset((void*)charBuf, 0, 17);
+	for (; i < size; ++i)
+	{
+		snprintf(&(buffer[(i%16) * 3]) , 4, "%02x ", *(data+i)&0xff);
+		if ((data[i] >= ' ' && data[i] <= '^') ||
+			(data[i] >= 'a' && data[i] <= '~')) // printable characters
+			charBuf[i%16] = data[i];
+		else
+			charBuf[i%16] = '.';
+		if ((i % 16) == 15 || i == (size - 1))
+		{
+			charBuf[(i%16)+1] = '\0';
+			buffer[((i%16) * 3) + 2] = '\0';
+			printf("%-48s- %-16s\n", buffer, charBuf);
+			memset((void*)buffer, 0, 49);
+			memset((void*)charBuf, 0, 17);
+		}
+	}
 }
 
 void
@@ -1260,6 +1303,86 @@ get_all_files (int busn, int devn, short force, int overwrite)
 	close_camera(&ptp_usb, &params, dev);
 }
 
+void
+send_generic_request (int busn, int devn, uint16_t reqCode, uint32_t *reqParams, uint32_t direction, char *data_file)
+{
+	PTPParams params;
+	PTP_USB ptp_usb;
+	struct usb_device *dev;
+	char *data = NULL;
+	long fsize = 0;
+
+	if (direction == PTP_DP_SENDDATA) { // read data from file
+		if (strncmp(data_file, "0x", 2) == 0) {
+		    uint len = strlen(data_file);
+			char num[3];
+			uint i;
+			data = (char*)calloc(1,len / 2);
+
+			num[2] = 0;
+			for (i = 2; i < len ; i += 2) {
+				num[1] = data_file[i];
+				if (i < len-1) {
+					num[0] = data_file[i];
+				    num[1] = data_file[i+1];
+				}
+				else {
+				    num[0] = data_file[i];
+					num[1] = 0;
+				}
+				data[fsize] = (char)strtol(num, NULL, 16);
+				++fsize;
+			}
+		}
+		else {
+		    FILE *f = fopen(data_file, "r");
+			if (f) {
+				fseek(f, 0, SEEK_END);
+				fsize = ftell(f);
+				fseek(f, 0, SEEK_SET);
+				data = (char*)calloc(1,fsize + 1);
+				if (fread(data, 1, fsize, f) != fsize) {
+					fprintf(stderr, "PTP: ERROR: can't read data to send from file '%s'\n", data_file);
+					free (data);
+					return;
+				}
+				else {
+					printf("--- data to send ---\n");
+					display_hexdump(data, fsize);
+					printf("--------------------\n");
+				}
+			} else { // error no data to send
+				fprintf(stderr, "PTP: ERROR: file not found '%s'\n", data_file);
+				return;
+			}
+		}
+	}
+
+	if (open_camera(busn, devn, 0, &ptp_usb, &params, &dev)<0)
+		return;
+	printf("Camera: %s\n",params.deviceinfo.Model);
+
+	printf("Sending generic request: reqCode=0x%04x, params=[0x%08x,0x%08x,0x%08x,0x%08x,0x%08x]\n",
+			(uint)reqCode, reqParams[0], reqParams[1], reqParams[2], reqParams[3], reqParams[4]);
+	uint16_t result=ptp_sendgenericrequest (&params, reqCode, reqParams, &data, direction, fsize);
+	if((result)!=PTP_RC_OK) {
+		ptp_perror(&params,result);
+		if (result > 0x2000)
+			fprintf(stderr,"PTP: ERROR: response 0x%04x\n", result);
+	} else {
+	    if (data != NULL && direction == PTP_DP_GETDATA) {
+		    display_hexdump(data, malloc_usable_size ((void*)data));
+			free(data);
+		}
+		printf("PTP: response OK\n");
+	}
+	if (data != NULL && direction == PTP_DP_SENDDATA) {
+		free(data);
+	}
+	close_camera(&ptp_usb, &params, dev);
+	return;
+	
+}
 
 void
 list_operations (int busn, int devn, short force)
@@ -1938,6 +2061,10 @@ main(int argc, char ** argv)
 	char *filename=NULL;
 	int num=0;
 	int interval=0;
+	uint16_t reqCode=0;
+	uint32_t reqParams[5];
+	uint32_t direction=PTP_DP_GETDATA;
+	char data_file[256];
 	/* parse options */
 	int option_index = 0,opt;
 	static struct option loptions[] = {
@@ -1980,7 +2107,7 @@ main(int argc, char ** argv)
 	signal(SIGINT, ptpcam_siginthandler);
 	
 	while(1) {
-		opt = getopt_long (argc, argv, "LhlcipfroGg:Dd:s:v::", loptions, &option_index);
+		opt = getopt_long (argc, argv, "LhlcipfroGg:Dd:s:v::R:", loptions, &option_index);
 		if (opt==-1) break;
 	
 		switch (opt) {
@@ -2080,6 +2207,22 @@ main(int argc, char ** argv)
 			break;
 		case 'D':
 			action=ACT_DELETE_ALL_FILES;
+			break;
+		case 'R':
+			action=ACT_GENERIC_REQ;
+			memset((void*)reqParams, 0, sizeof(uint32_t) * 5);
+			memset((void*)data_file, 0, 256);
+			sscanf(optarg, "%x,%x,%x,%x,%x,%x,%s", (uint*)&reqCode, &reqParams[0], &reqParams[1],
+				   &reqParams[2], &reqParams[3], &reqParams[4], data_file);
+			if (data_file[0] == 'r') {
+			  direction = PTP_DP_GETDATA;
+			} else if (data_file[0] == 'n') {
+			  direction = PTP_DP_NODATA;
+			} else if (strlen(data_file)>0) {
+			  direction = PTP_DP_SENDDATA;
+			  printf("data to send : '%s'\n", data_file);
+			}
+			break;
 		case '?':
 			break;
 		default:
@@ -2117,6 +2260,9 @@ main(int argc, char ** argv)
 			break;
 		case ACT_GET_FILE:
 			get_file(busn,devn,force,handle,filename,overwrite);
+			break;
+		case ACT_GENERIC_REQ:
+		    send_generic_request (busn, devn, reqCode, reqParams, direction, data_file);
 			break;
 		case ACT_GET_ALL_FILES:
 			get_all_files(busn,devn,force,overwrite);

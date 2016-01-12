@@ -110,6 +110,12 @@ typedef struct _PTPUSBEventContainer PTPUSBEventContainer;
 #define PTP_VENDOR_NIKON		0x0000000A
 #define PTP_VENDOR_CANON		0x0000000B
 
+/* Transaction data phase description */
+#define PTP_DP_NODATA		0x0000	/* no data phase */
+#define PTP_DP_SENDDATA		0x0001	/* sending data */
+#define PTP_DP_GETDATA		0x0002	/* receiving data */
+#define PTP_DP_DATA_MASK	0x00ff	/* data phase mask */
+
 /* Operation Codes */
 
 #define PTP_OC_Undefined                0x1000
@@ -822,7 +828,12 @@ uint16_t ptp_getdevicepropdesc	(PTPParams* params, uint16_t propcode,
 uint16_t ptp_getdevicepropvalue	(PTPParams* params, uint16_t propcode,
 				void** value, uint16_t datatype);
 uint16_t ptp_setdevicepropvalue (PTPParams* params, uint16_t propcode,
-                        	void* value, uint16_t datatype);
+				void* value, uint16_t datatype);
+
+
+uint16_t ptp_sendgenericrequest (PTPParams* params, uint16_t reqcode,
+				uint32_t* reqparams, char** data,
+				uint32_t direction, long sendlen);
 
 
 uint16_t ptp_ek_sendfileobjectinfo (PTPParams* params, uint32_t* store,

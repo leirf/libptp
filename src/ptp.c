@@ -256,12 +256,6 @@ ptp_usb_getresp (PTPParams* params, PTPContainer* resp)
 
 /* major PTP functions */
 
-/* Transaction data phase description */
-#define PTP_DP_NODATA		0x0000	/* no data phase */
-#define PTP_DP_SENDDATA		0x0001	/* sending data */
-#define PTP_DP_GETDATA		0x0002	/* receiving data */
-#define PTP_DP_DATA_MASK	0x00ff	/* data phase mask */
-
 /* Number of PTP Request phase parameters */
 #define PTP_RQ_PARAM0		0x0000	/* zero parameters */
 #define PTP_RQ_PARAM1		0x0100	/* one parameter */
@@ -838,6 +832,39 @@ ptp_setdevicepropvalue (PTPParams* params, uint16_t propcode,
 	size=ptp_pack_DPV(params, value, &dpv, datatype);
 	ret=ptp_transaction(params, &ptp, PTP_DP_SENDDATA, size, &dpv);
 	free(dpv);
+	return ret;
+}
+
+uint16_t
+ptp_sendgenericrequest (PTPParams* params, uint16_t reqcode,
+						uint32_t* reqparams, char** data, uint32_t direction, long sendlen)
+{
+	PTPContainer ptp;
+	uint16_t ret=0;
+	char *dpv=NULL;
+	
+	if (direction == PTP_DP_GETDATA)
+		*data = NULL;
+
+	ptp_debug(params, "PTP: Sending generic Request 0x%04x", reqcode);
+
+	PTP_CNT_INIT(ptp);
+	ptp.Code=reqcode;
+	ptp.Nparam=0;
+	// carfull here, do not only rely on the nullity of a value,
+	// because the next parameter might be not null
+	if((ptp.Param1=reqparams[0]) != 0)
+		ptp.Nparam = 1;
+	if((ptp.Param2=reqparams[1]) != 0)
+		ptp.Nparam = 2;
+	if((ptp.Param3=reqparams[2]) != 0)
+		ptp.Nparam = 3;
+	if((ptp.Param4=reqparams[3]) != 0)
+		ptp.Nparam = 4;
+	if((ptp.Param5=reqparams[4]) != 0)
+		ptp.Nparam = 5;
+
+	ret=ptp_transaction(params, &ptp, direction, sendlen, data);
 	return ret;
 }
 
